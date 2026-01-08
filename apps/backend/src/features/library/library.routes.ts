@@ -1,7 +1,11 @@
-const express = require('express');
+
+import express from 'express';
+// @ts-ignore
+import libraryController from './library.controller';
+// @ts-ignore
+import authMiddleware from '../../middleware/auth';
+
 const router = express.Router();
-const libraryController = require('./library.controller');
-const authMiddleware = require('../../middleware/auth');
 
 // Debug & Fix Data
 router.get('/debug-fix', authMiddleware, libraryController.debugFix);
@@ -55,4 +59,4 @@ router.post('/install', authMiddleware, libraryController.installGame);
 // Ajouter un jeu manuellement avec une game_key externe
 router.post('/add-manual', authMiddleware, libraryController.addManualGame);
 
-module.exports = router;
+export default router;

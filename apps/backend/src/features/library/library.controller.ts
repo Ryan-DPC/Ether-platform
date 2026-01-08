@@ -1,20 +1,23 @@
-const libraryService = require('./library.service');
+
+import { Request, Response } from 'express';
+// @ts-ignore
+import libraryService from './library.service';
 
 class LibraryController {
     // Debug & Fix Data
-    async debugFix(req, res) {
+    async debugFix(req: any, res: Response) {
         try {
             const userId = req.user.id;
             const result = await libraryService.debugFix(userId);
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Debug Fix Error:', error);
             res.status(500).json({ error: error.message });
         }
     }
 
     // Acheter un jeu depuis le store officiel
-    async purchaseGame(req, res) {
+    async purchaseGame(req: any, res: Response) {
         try {
             const { gameId } = req.body;
             const userId = req.user.id;
@@ -25,14 +28,14 @@ class LibraryController {
 
             const result = await libraryService.purchaseGame(userId, gameId);
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de l\'achat :', error);
             res.status(400).json({ error: error.message });
         }
     }
 
     // Lister un jeu à la revente
-    async listForSale(req, res) {
+    async listForSale(req: any, res: Response) {
         try {
             const { gameKey, askingPrice } = req.body;
             const userId = req.user.id;
@@ -43,14 +46,14 @@ class LibraryController {
 
             const result = await libraryService.listGameForSale(gameKey, askingPrice, userId);
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de la mise en vente :', error);
             res.status(400).json({ error: error.message });
         }
     }
 
     // Acheter un jeu d'occasion
-    async purchaseUsedGame(req, res) {
+    async purchaseUsedGame(req: any, res: Response) {
         try {
             const { gameKey, sellerId } = req.body;
             const buyerId = req.user.id;
@@ -61,14 +64,14 @@ class LibraryController {
 
             const result = await libraryService.purchaseUsedGame(buyerId, gameKey, sellerId);
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de l\'achat d\'occasion :', error);
             res.status(400).json({ error: error.message });
         }
     }
 
     // Obtenir les jeux possédés par l'utilisateur
-    async getMyGames(req, res) {
+    async getMyGames(req: any, res: Response) {
         try {
             const userId = req.user.id;
             const games = await libraryService.getUserOwnedGames(userId);
@@ -80,7 +83,7 @@ class LibraryController {
     }
 
     // Obtenir le marketplace (jeux en vente)
-    async getMarketplace(req, res) {
+    async getMarketplace(req: any, res: Response) {
         try {
             const { minPrice, maxPrice, genre, sort } = req.query;
             const excludeUserId = req.user?.id || null; // Exclure les ventes de l'utilisateur connecté
@@ -93,7 +96,7 @@ class LibraryController {
     }
 
     // Obtenir les ventes actives de l'utilisateur connecté
-    async getMySales(req, res) {
+    async getMySales(req: any, res: Response) {
         try {
             const userId = req.user.id;
             const sales = await libraryService.getUserActiveSales(userId);
@@ -105,7 +108,7 @@ class LibraryController {
     }
 
     // Obtenir l'historique des transactions
-    async getTransactionHistory(req, res) {
+    async getTransactionHistory(req: any, res: Response) {
         try {
             const userId = req.user.id;
             const transactions = await libraryService.getUserTransactionHistory(userId);
@@ -117,7 +120,7 @@ class LibraryController {
     }
 
     // Obtenir les statistiques de la blockchain
-    async getBlockchainStats(req, res) {
+    async getBlockchainStats(req: Request, res: Response) {
         try {
             const stats = libraryService.getBlockchainStats();
             res.json(stats);
@@ -128,7 +131,7 @@ class LibraryController {
     }
 
     // Annuler une vente
-    async cancelSale(req, res) {
+    async cancelSale(req: any, res: Response) {
         try {
             const { gameKey } = req.body;
             const userId = req.user.id;
@@ -146,7 +149,7 @@ class LibraryController {
     }
 
     // Réclamer un jeu avec une clé
-    async redeemKey(req, res) {
+    async redeemKey(req: any, res: Response) {
         try {
             const { key } = req.body;
             const userId = req.user.id;
@@ -157,14 +160,14 @@ class LibraryController {
 
             const result = await libraryService.redeemKey(userId, key);
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de la réclamation :', error);
             res.status(400).json({ error: error.message });
         }
     }
 
     // Générer des clés de jeu (dev/admin)
-    async generateKeys(req, res) {
+    async generateKeys(req: any, res: Response) {
         try {
             const { gameId, quantity, purpose } = req.body;
             const userId = req.user.id;
@@ -184,14 +187,14 @@ class LibraryController {
                 purpose || 'dev'
             );
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de la génération des clés :', error);
             res.status(400).json({ error: error.message });
         }
     }
 
     // Obtenir les clés générées (dev/admin)
-    async getGeneratedKeys(req, res) {
+    async getGeneratedKeys(req: any, res: Response) {
         try {
             const { gameId, userId, used } = req.query;
             const currentUserId = req.user.id;
@@ -209,7 +212,7 @@ class LibraryController {
     }
 
     // Installer un jeu
-    async installGame(req, res) {
+    async installGame(req: any, res: Response) {
         try {
             const { gameKey } = req.body;
             const userId = req.user.id;
@@ -220,14 +223,14 @@ class LibraryController {
 
             const result = await libraryService.installGame(userId, gameKey);
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de l\'installation :', error);
             res.status(400).json({ error: error.message });
         }
     }
 
     // Ajouter un jeu manuellement avec une game_key externe
-    async addManualGame(req, res) {
+    async addManualGame(req: any, res: Response) {
         try {
             const { gameKey, gameData } = req.body;
             const userId = req.user.id;
@@ -238,11 +241,11 @@ class LibraryController {
 
             const result = await libraryService.addManualGame(userId, gameKey, gameData || {});
             res.json(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors de l\'ajout manuel :', error);
             res.status(400).json({ error: error.message });
         }
     }
 }
 
-module.exports = new LibraryController();
+export default new LibraryController();
