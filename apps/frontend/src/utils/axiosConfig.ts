@@ -11,7 +11,7 @@ const getBaseURL = () => {
 
     // Hardcoded production fallback for Desktop App
     if (import.meta.env.PROD && (isTauri || isElectron)) {
-        return 'https://backend-ether.onrender.com/api'
+        return 'https://ether-backend-n24i.onrender.com/api'
     }
 
     // In Desktop App (Tauri/Electron) DEV mode, use localhost
