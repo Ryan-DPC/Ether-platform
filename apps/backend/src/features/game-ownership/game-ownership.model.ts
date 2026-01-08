@@ -1,10 +1,34 @@
-const mongoose = require('mongoose');
-const crypto = require('crypto');
 
-const gameOwnershipSchema = new mongoose.Schema(
+import mongoose, { Document, Schema } from 'mongoose';
+import crypto from 'crypto';
+
+export interface IGameOwnership extends Document {
+    user_id: mongoose.Types.ObjectId;
+    game_key: string;
+    game_name: string;
+    purchase_price: number;
+    purchase_date: Date;
+    is_manual_add: boolean;
+    for_sale: boolean;
+    asking_price?: number | null;
+    listed_at?: Date | null;
+    ownership_token?: string;
+    game_id?: mongoose.Types.ObjectId | null;
+    current_price?: number | null;
+    status: 'owned' | 'listed_for_sale';
+    is_resellable: boolean;
+    game_type: 'web' | 'exe';
+    exe_path?: string | null;
+    game_description?: string | null;
+    installed: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const gameOwnershipSchema = new Schema<IGameOwnership>(
     {
         user_id: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Schema.Types.ObjectId,
             ref: 'User',
             required: true,
             index: true
@@ -49,7 +73,7 @@ const gameOwnershipSchema = new mongoose.Schema(
         },
         // Game reference (can be null for manual games)
         game_id: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Schema.Types.ObjectId,
             ref: 'Game',
             default: null,
             index: true
@@ -108,5 +132,4 @@ gameOwnershipSchema.pre('save', function (next) {
 });
 
 // Prevent OverwriteModelError
-module.exports = mongoose.models.GameOwnership || mongoose.model('GameOwnership', gameOwnershipSchema);
-
+export default mongoose.models.GameOwnership as mongoose.Model<IGameOwnership> || mongoose.model<IGameOwnership>('GameOwnership', gameOwnershipSchema);

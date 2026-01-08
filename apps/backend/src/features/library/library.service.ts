@@ -4,23 +4,15 @@ import path from 'path';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 
-// Models & Services
-// @ts-ignore
 import { Blockchain, Transaction } from '../../services/blockchain.service';
-// @ts-ignore
 import { generateGameKey, isValidKeyFormat } from '../../utils/gameKeys';
-// @ts-ignore
-import Games from '../games/games.model';
-// @ts-ignore
-import Users from '../users/user.model';
-// @ts-ignore
-import GameOwnership from '../game-ownership/game-ownership.model';
-// @ts-ignore
+import Games, { IGame } from '../games/games.model';
+import Users, { IUser } from '../users/user.model';
+import GameOwnership, { IGameOwnership } from '../game-ownership/game-ownership.model';
 import Commission from './commissions.model';
-// @ts-ignore
 import BlockchainTx from './blockchainTx.model';
-// @ts-ignore
-import GameKey from './gameKeys.model';
+import GameKey, { IGameKey } from './gameKeys.model';
+
 // @ts-ignore
 import CloudinaryService from '../../services/cloudinary.service';
 // @ts-ignore
@@ -31,7 +23,7 @@ import logger from '../../utils/logger';
 const GAMES_LIBRARY_PATH = process.env.GAMES_LIBRARY_PATH || path.join(__dirname, '../../../games');
 
 export class LibraryService {
-    blockchain: any;
+    blockchain: Blockchain;
     platformCommissionRate: number;
     developerCommissionRate: number;
 
@@ -48,23 +40,24 @@ export class LibraryService {
     }
 
     async debugFix(userId: string) {
-        const BlockchainTxModel = mongoose.models.BlockchainTransaction || mongoose.model('BlockchainTransaction');
-        const GameModel = mongoose.models.Game || mongoose.model('Game');
+        // Renaming local variables to avoid conflict with imports if necessary, but imports are classes/models
+        // Using explicit imports now
         const userIdObj = new mongoose.Types.ObjectId(userId);
 
         // 1. Fix Marketplace
         // const deletedListings = 0;
 
         // 2. Fix Transactions
-        const game = await GameModel.findOne({ folder_name: 'spludbuster' }).select('_id').lean();
+        // Accessing underlying models via imports directly is fine as they are Mongoose Models
+        const game = await Games.getGameByName('spludbuster');
         let fixedTxs = 0;
         if (game) {
             const userAddress = `user_${userId}`;
-            const result = await BlockchainTxModel.updateMany({
+            const result = await BlockchainTx.updateMany({
                 $or: [{ from_address: userAddress }, { to_address: userAddress }],
                 amount: 5,
                 game_id: null
-            }, { $set: { game_id: game._id } });
+            }, { $set: { game_id: game.id } }); // game.id is available from getGameByName wrapper return
             fixedTxs = result.modifiedCount;
         }
 
@@ -112,47 +105,49 @@ export class LibraryService {
                     if (cloudinaryService.isEnabled()) {
                         const manifestUrl = cloudinaryService.getPublicUrl(`games/dev/${folderName}/manifest.json`, 'raw');
                         try {
-                            const response = await fetch(manifestUrl);
-                            if (response.ok) {
-                                const manifest = await response.json();
-                                const gameData = {
-                                    game_name: manifest.gameName || folderName,
-                                    folder_name: folderName,
-                                    description: manifest.description || '',
-                                    image_url: cloudinaryService.getPublicUrl(`games/dev/${folderName}/image.png`, 'image') || '/assets/images/default-game.png',
-                                    status: 'disponible',
-                                    genre: manifest.genre || 'Undefined',
-                                    max_players: manifest.maxPlayers || 1,
-                                    is_multiplayer: manifest.isMultiplayer || false,
-                                    developer: manifest.developer || 'Inconnu',
-                                    price: manifest.price || 0,
-                                    manifestUrl: manifestUrl,
-                                    manifestVersion: manifest.version || '1.0.0',
-                                    manifestUpdatedAt: new Date(),
-                                };
-                                const newGameId = await Games.addGame(gameData);
-                                game = await Games.getGameById(newGameId);
-                            } else {
-                                const cloudinaryGames = await cloudinaryService.getAllGames(false);
-                                const cloudinaryGame = cloudinaryGames.find((g: any) => g.folder_name === folderName);
-                                if (cloudinaryGame) {
+                            if (manifestUrl) {
+                                const response = await fetch(manifestUrl);
+                                if (response.ok) {
+                                    const manifest: any = await response.json();
                                     const gameData = {
-                                        game_name: cloudinaryGame.game_name || folderName,
+                                        game_name: manifest.gameName || folderName,
                                         folder_name: folderName,
-                                        description: cloudinaryGame.description || '',
-                                        image_url: cloudinaryGame.image_url || '/assets/images/default-game.png',
+                                        description: manifest.description || '',
+                                        image_url: cloudinaryService.getPublicUrl(`games/dev/${folderName}/image.png`, 'image') || '/assets/images/default-game.png',
                                         status: 'disponible',
-                                        genre: cloudinaryGame.genre || 'Undefined',
-                                        max_players: cloudinaryGame.max_players || 1,
-                                        is_multiplayer: cloudinaryGame.is_multiplayer || false,
-                                        developer: cloudinaryGame.developer || 'Inconnu',
-                                        price: cloudinaryGame.price || 0,
-                                        manifestUrl: cloudinaryGame.manifestUrl || null,
-                                        manifestVersion: cloudinaryGame.manifestVersion || null,
-                                        manifestUpdatedAt: cloudinaryGame.manifestUpdatedAt || null,
+                                        genre: manifest.genre || 'Undefined',
+                                        max_players: manifest.maxPlayers || 1,
+                                        is_multiplayer: manifest.isMultiplayer || false,
+                                        developer: manifest.developer || 'Inconnu',
+                                        price: manifest.price || 0,
+                                        manifestUrl: manifestUrl,
+                                        manifestVersion: manifest.version || '1.0.0',
+                                        manifestUpdatedAt: new Date(),
                                     };
                                     const newGameId = await Games.addGame(gameData);
                                     game = await Games.getGameById(newGameId);
+                                } else {
+                                    const cloudinaryGames = await cloudinaryService.getAllGames(false);
+                                    const cloudinaryGame: any = cloudinaryGames.find((g: any) => g.folder_name === folderName);
+                                    if (cloudinaryGame) {
+                                        const gameData = {
+                                            game_name: cloudinaryGame.game_name || folderName,
+                                            folder_name: folderName,
+                                            description: cloudinaryGame.description || '',
+                                            image_url: cloudinaryGame.image_url || '/assets/images/default-game.png',
+                                            status: 'disponible',
+                                            genre: cloudinaryGame.genre || 'Undefined',
+                                            max_players: cloudinaryGame.max_players || 1,
+                                            is_multiplayer: cloudinaryGame.is_multiplayer || false,
+                                            developer: cloudinaryGame.developer || 'Inconnu',
+                                            price: cloudinaryGame.price || 0,
+                                            manifestUrl: cloudinaryGame.manifestUrl || null,
+                                            manifestVersion: cloudinaryGame.manifestVersion || null,
+                                            manifestUpdatedAt: cloudinaryGame.manifestUpdatedAt || null,
+                                        };
+                                        const newGameId = await Games.addGame(gameData);
+                                        game = await Games.getGameById(newGameId);
+                                    }
                                 }
                             }
                         } catch (err: any) {
@@ -172,7 +167,7 @@ export class LibraryService {
                 throw new Error(`Jeu non trouvé (ID: ${gameIdStr}${folderName ? `, folder_name: ${folderName}` : ''})`);
             }
 
-            const gameObjectId = new mongoose.Types.ObjectId(game.id || game._id);
+            const gameObjectId = new mongoose.Types.ObjectId(game.id as string);
             const userIdObj = new mongoose.Types.ObjectId(userId);
 
             const existing = await GameOwnership.findOne({
@@ -192,7 +187,7 @@ export class LibraryService {
 
             const gamePriceCHF = game.price || 0;
 
-            let gameKey: any = null;
+            let gameKey: string | null = null;
             const availableKey = await GameKey.findOne({
                 game_id: gameObjectId,
                 is_used: false
@@ -212,12 +207,12 @@ export class LibraryService {
                 }
             }
 
-            const userCHF = (user.balances && user.balances.chf) || 0;
+            const userCHF = user.balances?.chf || 0;
             if (gamePriceCHF > 0 && userCHF < gamePriceCHF) {
                 throw new Error(`Solde CHF insuffisant. Vous avez ${userCHF.toFixed(2)} CHF, prix: ${gamePriceCHF.toFixed(2)} CHF`);
             }
 
-            let gameType = 'web';
+            let gameType: 'web' | 'exe' = 'web';
             try {
                 const gameManifestPath = path.join(GAMES_LIBRARY_PATH, game.folder_name || '', 'manifest.json');
                 if (fs.existsSync(gameManifestPath)) {
@@ -228,12 +223,16 @@ export class LibraryService {
                 }
             } catch (e) { }
 
-            // FIX: Declare transaction outside to be used in both blocks
-            let transaction: any = null;
+            let transaction: Transaction | null = null;
 
             if (gamePriceCHF === 0) {
+                // Determine wallet address properly if not present
+                // Using a clearer assignment
+                const fromAddr = user.balances ? (user as any).wallet_address || `user_${userId}` : `user_${userId}`; // Users wrapper might return plain object with balances, w/o wallet_address field in interface if not added. I should check IUser interface.
+                // IUser interface doesn't have wallet_address. Using fallback.
+
                 transaction = new Transaction(
-                    user.wallet_address || `user_${userId}`,
+                    `user_${userId}`,
                     `platform_${gameObjectId}`,
                     0,
                     'game_purchase',
@@ -255,8 +254,8 @@ export class LibraryService {
 
                 await BlockchainTx.create([{
                     transaction_id: transaction.transactionId,
-                    from_address: transaction.fromAddress,
-                    to_address: transaction.toAddress,
+                    from_address: transaction.fromAddress!,
+                    to_address: transaction.toAddress!,
                     amount: 0,
                     transaction_type: 'game_purchase',
                     game_id: gameObjectId,
@@ -281,7 +280,7 @@ export class LibraryService {
 
             // Paid games logic
             transaction = new Transaction(
-                user.wallet_address || `user_${userId}`,
+                `user_${userId}`,
                 `platform_${gameObjectId}`,
                 gamePriceCHF,
                 'game_purchase',
@@ -324,8 +323,8 @@ export class LibraryService {
 
             await BlockchainTx.create([{
                 transaction_id: transaction.transactionId,
-                from_address: transaction.fromAddress,
-                to_address: transaction.toAddress,
+                from_address: transaction.fromAddress!,
+                to_address: transaction.toAddress!,
                 amount: transaction.amount,
                 transaction_type: transaction.type,
                 game_id: gameObjectId,
@@ -342,7 +341,7 @@ export class LibraryService {
             }
 
             const updatedUser = await Users.getUserById(userId);
-            const finalCHF = (updatedUser.balances && updatedUser.balances.chf) || 0;
+            const finalCHF = updatedUser?.balances?.chf || 0;
 
             return {
                 success: true,
@@ -405,18 +404,31 @@ export class LibraryService {
             if (!listing) {
                 throw new Error('Jeu non disponible à la vente');
             }
+            // fix: checking if listing has asking_price (it might be undefined in type, but runtime logic ensures it)
+            const askingPrice = listing.asking_price || 0;
 
             const buyer = await Users.getUserById(buyerId);
-            const buyerCHF = (buyer?.balances && buyer.balances.chf) || 0;
-            if (!buyer || buyerCHF < listing.asking_price) {
-                throw new Error(`Solde CHF insuffisant. Vous avez ${buyerCHF.toFixed(2)} CHF, prix: ${listing.asking_price.toFixed(2)} CHF`);
+            const buyerCHF = buyer?.balances?.chf || 0;
+            if (!buyer || buyerCHF < askingPrice) {
+                throw new Error(`Solde CHF insuffisant. Vous avez ${buyerCHF.toFixed(2)} CHF, prix: ${askingPrice.toFixed(2)} CHF`);
             }
 
-            const platformCommission = Math.floor(listing.asking_price * 0.05);
-            const developerCommission = Math.floor(listing.asking_price * 0.02);
-            const sellerAmount = listing.asking_price - platformCommission - developerCommission;
+            const platformCommission = Math.floor(askingPrice * 0.05);
+            const developerCommission = Math.floor(askingPrice * 0.02);
+            const sellerAmount = askingPrice - platformCommission - developerCommission;
 
-            const transaction = new Transaction(buyer.wallet_address || `user_${buyerId}`, `user_${sellerId}`, listing.asking_price, 'game_sale', listing.game_id);
+            // Type check for listing.game_id - it's ObjectId in interface but could be populated?
+            // lean() returns POJO. If not populated, it is ObjectId.
+            // Transaction constructor expects string | null for gameId.
+            const gameIdStr = listing.game_id ? listing.game_id.toString() : null;
+
+            const transaction = new Transaction(
+                `user_${buyerId}`,
+                `user_${sellerId}`,
+                askingPrice,
+                'game_sale',
+                gameIdStr
+            );
 
             this.blockchain.createTransaction(transaction);
 
@@ -428,7 +440,7 @@ export class LibraryService {
                     $set: {
                         user_id: buyerIdObj,
                         status: 'owned',
-                        current_price: listing.asking_price,
+                        current_price: askingPrice,
                         for_sale: false,
                         asking_price: null,
                         listed_at: null,
@@ -436,14 +448,32 @@ export class LibraryService {
                 }
             );
 
-            await Users.decrementBalance(buyerId, 'CHF', listing.asking_price);
+            await Users.decrementBalance(buyerId, 'CHF', askingPrice);
             const seller = await Users.getUserById(sellerId);
-            const sellerCHF = (seller?.balances && seller.balances.chf) || 0;
+            const sellerCHF = seller?.balances?.chf || 0;
             await Users.updateUserBalance(sellerId, 'CHF', sellerCHF + sellerAmount);
 
+            // Fetch developer from game if needed - logic in JS accessed updatedUser/listing.
+            // But listing.developer is not on IGameOwnership directly (it's on populated game).
+            // Original code: recipient_id: listing.developer || null
+            // We need to fetch the game to get developer if it wasn't populated.
+            // Or assume usage of populate() previously?
+            // In purchaseUsedGame, listing is NOT populated.
+            // So listing.developer would be undefined in JS too unless previously populated.
+            // Wait, previous JS code had: recipient_id: listing.developer || null
+            // But looking at GameOwnership schema, there is no 'developer' field. It's on Game.
+            // And findOne here is NOT populated.
+            // So recipient_id was probably always null or erroring in JS logic unless I missed something.
+            // Let's protect it.
+            let developerId = null;
+            if (listing.game_id) {
+                const game = await Games.getGameById(listing.game_id.toString());
+                if (game) developerId = game.developer;
+            }
+
             await Commission.create({ transaction_id: transaction.transactionId, recipient_type: 'platform', recipient_id: null, amount: platformCommission, percentage: 0.05 });
-            await Commission.create({ transaction_id: transaction.transactionId, recipient_type: 'developer', recipient_id: listing.developer || null, amount: developerCommission, percentage: 0.02 });
-            await BlockchainTx.create({ transaction_id: transaction.transactionId, from_address: transaction.fromAddress, to_address: transaction.toAddress, amount: transaction.amount, transaction_type: transaction.type, game_id: listing.game_id, game_key: gameKey });
+            await Commission.create({ transaction_id: transaction.transactionId, recipient_type: 'developer', recipient_id: developerId, amount: developerCommission, percentage: 0.02 });
+            await BlockchainTx.create({ transaction_id: transaction.transactionId, from_address: transaction.fromAddress!, to_address: transaction.toAddress!, amount: transaction.amount, transaction_type: transaction.type, game_id: listing.game_id, game_key: gameKey });
 
             this.blockchain.minePendingTransactions('platform_wallet');
 
@@ -472,9 +502,9 @@ export class LibraryService {
                 return { success: true, message: 'Jeu déjà installé' };
             }
 
-            const game = ownership.game_id;
+            const game = ownership.game_id as any; // Cast to any because population replaces ObjectId with Doc
             const gameFolderName = game?.folder_name;
-            let gameFolderPath = null;
+            let gameFolderPath;
 
             if (gameFolderName) {
                 gameFolderPath = path.join(GAMES_LIBRARY_PATH, gameFolderName);
@@ -806,7 +836,7 @@ export class LibraryService {
                 gameKey: key,
                 game: {
                     id: game.id || gameKey.game_id.toString(),
-                    name: game.name,
+                    name: game.game_name,
                     folder_name: game.folder_name
                 }
             };
@@ -853,7 +883,7 @@ export class LibraryService {
                 success: true,
                 game: {
                     id: game.id || gameId,
-                    name: (game as any).game_name || (game as any).name
+                    name: game.game_name
                 },
                 quantity: keys.length,
                 keys

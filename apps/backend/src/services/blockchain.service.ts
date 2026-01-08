@@ -1,7 +1,56 @@
-const crypto = require('crypto');
 
-class Block {
-    constructor(timestamp, transactions, previousHash = '') {
+import crypto from 'crypto';
+
+export class Transaction {
+    fromAddress: string | null;
+    toAddress: string | null;
+    amount: number;
+    type: string;
+    gameId: string | null;
+    timestamp: number;
+    transactionId: string;
+
+    constructor(fromAddress: string | null, toAddress: string | null, amount: number, type = 'transfer', gameId: string | null = null) {
+        this.fromAddress = fromAddress;
+        this.toAddress = toAddress;
+        this.amount = amount;
+        this.type = type; // 'transfer', 'game_purchase', 'game_sale', 'commission', 'mining_reward'
+        this.gameId = gameId;
+        this.timestamp = Date.now();
+        this.transactionId = this.generateTransactionId();
+    }
+
+    generateTransactionId(): string {
+        return crypto
+            .createHash('sha256')
+            .update(
+                (this.fromAddress || '') +
+                (this.toAddress || '') +
+                this.amount +
+                this.timestamp +
+                Math.random()
+            )
+            .digest('hex');
+    }
+
+    isValid(): boolean {
+        // Les récompenses de minage peuvent avoir fromAddress = null
+        if (this.type === 'mining_reward') {
+            return this.amount > 0 && !!this.toAddress;
+        }
+        // Pour les autres transactions, fromAddress et toAddress sont requis
+        return this.amount > 0 && !!this.fromAddress && !!this.toAddress;
+    }
+}
+
+export class Block {
+    timestamp: number;
+    transactions: Transaction[];
+    previousHash: string;
+    nonce: number;
+    hash: string;
+
+    constructor(timestamp: number, transactions: Transaction[], previousHash = '') {
         this.timestamp = timestamp;
         this.transactions = transactions;
         this.previousHash = previousHash;
@@ -9,7 +58,7 @@ class Block {
         this.hash = this.calculateHash();
     }
 
-    calculateHash() {
+    calculateHash(): string {
         return crypto
             .createHash('sha256')
             .update(
@@ -21,7 +70,7 @@ class Block {
             .digest('hex');
     }
 
-    mineBlock(difficulty) {
+    mineBlock(difficulty: number): void {
         const target = Array(difficulty + 1).join('0');
 
         while (this.hash.substring(0, difficulty) !== target) {
@@ -33,7 +82,12 @@ class Block {
     }
 }
 
-class Blockchain {
+export class Blockchain {
+    chain: Block[];
+    difficulty: number;
+    pendingTransactions: Transaction[];
+    miningReward: number;
+
     constructor() {
         this.chain = [this.createGenesisBlock()];
         this.difficulty = 1;
@@ -41,15 +95,15 @@ class Blockchain {
         this.miningReward = 100; // Tokens de récompense pour le minage
     }
 
-    createGenesisBlock() {
+    createGenesisBlock(): Block {
         return new Block(Date.now(), [], '0');
     }
 
-    getLatestBlock() {
+    getLatestBlock(): Block {
         return this.chain[this.chain.length - 1];
     }
 
-    minePendingTransactions(miningRewardAddress) {
+    minePendingTransactions(miningRewardAddress: string): void {
         const rewardTransaction = new Transaction(
             null,
             miningRewardAddress,
@@ -70,7 +124,7 @@ class Blockchain {
         this.pendingTransactions = [];
     }
 
-    createTransaction(transaction) {
+    createTransaction(transaction: Transaction): void {
         if (!transaction.fromAddress || !transaction.toAddress) {
             throw new Error('Transaction must include from and to address');
         }
@@ -82,7 +136,7 @@ class Blockchain {
         this.pendingTransactions.push(transaction);
     }
 
-    getBalanceOfAddress(address) {
+    getBalanceOfAddress(address: string): number {
         let balance = 0;
 
         for (const block of this.chain) {
@@ -99,7 +153,7 @@ class Blockchain {
         return balance;
     }
 
-    isChainValid() {
+    isChainValid(): boolean {
         for (let i = 1; i < this.chain.length; i++) {
             const currentBlock = this.chain[i];
             const previousBlock = this.chain[i - 1];
@@ -116,39 +170,3 @@ class Blockchain {
         return true;
     }
 }
-
-class Transaction {
-    constructor(fromAddress, toAddress, amount, type = 'transfer', gameId = null) {
-        this.fromAddress = fromAddress;
-        this.toAddress = toAddress;
-        this.amount = amount;
-        this.type = type; // 'transfer', 'game_purchase', 'game_sale', 'commission', 'mining_reward'
-        this.gameId = gameId;
-        this.timestamp = Date.now();
-        this.transactionId = this.generateTransactionId();
-    }
-
-    generateTransactionId() {
-        return crypto
-            .createHash('sha256')
-            .update(
-                this.fromAddress +
-                this.toAddress +
-                this.amount +
-                this.timestamp +
-                Math.random()
-            )
-            .digest('hex');
-    }
-
-    isValid() {
-        // Les récompenses de minage peuvent avoir fromAddress = null
-        if (this.type === 'mining_reward') {
-            return this.amount > 0 && this.toAddress;
-        }
-        // Pour les autres transactions, fromAddress et toAddress sont requis
-        return this.amount > 0 && this.fromAddress && this.toAddress;
-    }
-}
-
-module.exports = { Blockchain, Block, Transaction };

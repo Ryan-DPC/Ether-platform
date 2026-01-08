@@ -1,10 +1,9 @@
-const crypto = require('crypto');
 
 /**
  * Génère une clé de jeu au format Steam: XXXX-XXXX-XXXX-XXXX
  */
-function generateGameKey() {
-    const parts = [];
+export function generateGameKey(): string {
+    const parts: string[] = [];
     for (let i = 0; i < 4; i++) {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let part = '';
@@ -19,12 +18,7 @@ function generateGameKey() {
 /**
  * Valide le format d'une clé de jeu
  */
-function isValidKeyFormat(key) {
+export function isValidKeyFormat(key: string): boolean {
     const regex = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
     return regex.test(key);
 }
-
-module.exports = {
-    generateGameKey,
-    isValidKeyFormat,
-};

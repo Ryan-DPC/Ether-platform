@@ -1,6 +1,28 @@
-const mongoose = require('mongoose');
 
-const gameSchema = new mongoose.Schema(
+import mongoose, { Document, Schema, Model } from 'mongoose';
+
+export interface IGame extends Document {
+    game_name: string;
+    folder_name: string;
+    description: string;
+    image_url: string;
+    status: string;
+    genre: string;
+    max_players: number;
+    is_multiplayer: boolean;
+    developer: string;
+    price: number;
+    manifestUrl?: string;
+    zipUrl?: string;
+    github_url?: string;
+    version: string;
+    manifestVersion?: string;
+    manifestUpdatedAt?: Date;
+    created_at: Date;
+    updated_at: Date;
+}
+
+const gameSchema = new Schema<IGame>(
     {
         game_name: { type: String, required: true },
         folder_name: { type: String, required: true, unique: true, index: true },
@@ -22,36 +44,36 @@ const gameSchema = new mongoose.Schema(
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
 
-const GameModel = mongoose.models.Game || mongoose.model('Game', gameSchema);
+export const GameModel: Model<IGame> = mongoose.models.Game || mongoose.model<IGame>('Game', gameSchema);
 
-class Games {
-    static async getAllGames() {
+export default class Games {
+    static async getAllGames(): Promise<any[]> {
         const docs = await GameModel.find({}).lean();
-        return docs.map((d) => ({ id: d._id.toString(), ...d }));
+        return docs.map((d: any) => ({ id: d._id.toString(), ...d }));
     }
 
-    static async addGame(game) {
+    static async addGame(game: Partial<IGame>): Promise<string> {
         const doc = await GameModel.create(game);
         return doc._id.toString();
     }
 
-    static async getGameByName(folder_name) {
+    static async getGameByName(folder_name: string): Promise<any | null> {
         const doc = await GameModel.findOne({ folder_name }).lean();
-        return doc ? { id: doc._id.toString(), ...doc } : null;
+        return doc ? { id: (doc as any)._id.toString(), ...doc } : null;
     }
 
-    static async getGameById(gameId) {
+    static async getGameById(gameId: string): Promise<any | null> {
         if (!gameId || !mongoose.Types.ObjectId.isValid(gameId)) return null;
         const doc = await GameModel.findById(gameId).lean();
-        return doc ? { id: doc._id.toString(), ...doc } : null;
+        return doc ? { id: (doc as any)._id.toString(), ...doc } : null;
     }
 
-    static async getAvailableGamesFromDB() {
+    static async getAvailableGamesFromDB(): Promise<any[]> {
         const docs = await GameModel.find({ status: 'disponible' }).lean();
-        return docs.map((d) => ({ id: d._id.toString(), ...d }));
+        return docs.map((d: any) => ({ id: d._id.toString(), ...d }));
     }
 
-    static async updateManifest(folderName, manifestUrl, manifestVersion) {
+    static async updateManifest(folderName: string, manifestUrl: string, manifestVersion: string): Promise<boolean> {
         const result = await GameModel.updateOne(
             { folder_name: folderName },
             {
@@ -65,8 +87,7 @@ class Games {
         return result.modifiedCount > 0;
     }
 
-    static async updateGameVersion(gameId, version, manifestUrl, zipUrl) {
-        // Try to find by ID first, then by folder_name (which might be passed as gameId)
+    static async updateGameVersion(gameId: string, version: string, manifestUrl: string, zipUrl: string): Promise<boolean> {
         let query = {};
         if (mongoose.Types.ObjectId.isValid(gameId)) {
             query = { _id: gameId };
@@ -78,13 +99,7 @@ class Games {
             query,
             {
                 $set: {
-                    version: version, // Note: Schema might need 'version' field if not present, checking...
-                    // The schema has 'manifestVersion', let's use that or add 'version' if strictly requested.
-                    // User asked for "version", "manifestUrl", "zipUrl".
-                    // Schema has: manifestVersion, manifestUrl, zipUrl.
-                    // I will map 'version' to 'manifestVersion' for consistency with existing schema, 
-                    // or I should add 'version' to schema if it's distinct.
-                    // Looking at schema: manifestVersion is present. I'll use that.
+                    version: version,
                     manifestVersion: version,
                     manifestUrl: manifestUrl,
                     zipUrl: zipUrl,
@@ -95,7 +110,7 @@ class Games {
         return result.modifiedCount > 0;
     }
 
-    static async getGamesByKeysOrIds(keys, ids) {
+    static async getGamesByKeysOrIds(keys: string[], ids: string[]): Promise<any[]> {
         return await GameModel.find({
             $or: [
                 { folder_name: { $in: keys } },
@@ -104,7 +119,7 @@ class Games {
         }).lean();
     }
 
-    static async updateGameMetadata(folderName, updates) {
+    static async updateGameMetadata(folderName: string, updates: any): Promise<boolean> {
         const result = await GameModel.updateOne(
             { folder_name: folderName },
             { $set: updates }
@@ -112,7 +127,7 @@ class Games {
         return result.modifiedCount > 0;
     }
 
-    static async findGameByIdOrSlug(identifier) {
+    static async findGameByIdOrSlug(identifier: string): Promise<any | null> {
         if (!identifier) return null;
         let query;
 
@@ -123,8 +138,6 @@ class Games {
         }
 
         const doc = await GameModel.findOne(query).lean();
-        return doc ? { id: doc._id.toString(), ...doc } : null;
+        return doc ? { id: (doc as any)._id.toString(), ...doc } : null;
     }
 }
-
-module.exports = Games;
