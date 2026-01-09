@@ -7,8 +7,8 @@
       </div>
       
       <div class="modal-body">
-        <p>Choisissez où installer vos jeux Ether.</p>
-        <p class="info">Un sous-dossier "Ether" sera créé automatiquement.</p>
+        <p>Choisissez où installer vos jeux VEXT.</p>
+        <p class="info">Un sous-dossier "VEXT" sera créé automatiquement.</p>
         
         <div class="form-group">
           <label for="install-path">Chemin d'installation</label>

@@ -3,6 +3,11 @@ import axios from 'axios'
 const isTauri = !!(window as any).__TAURI__;
 
 const getBaseURL = () => {
+    // TEMPORARY: Force Elysia Backend for performance testing
+    return 'http://localhost:3000/api';
+
+    // Original logic preserved below for rollback
+    /*
     // If VITE_API_URL is explicitly set, use it
     if (import.meta.env.VITE_API_URL) {
         return `${import.meta.env.VITE_API_URL}/api`
@@ -20,6 +25,7 @@ const getBaseURL = () => {
 
     // In dev mode (with Vite proxy), use relative path
     return '/api'
+    */
 }
 
 axios.defaults.baseURL = getBaseURL()

@@ -43,8 +43,8 @@ jobs:
         # Sign the app if needed, usually requires configuration in tauri.conf.json
         # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://localhost:3001/api' }}
-        VITE_WEBSOCKET_URL: ${{ secrets.VITE_WEBSOCKET_URL || 'ws://localhost:3002' }}
+        VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://vext-backend.onrender.com' }}
+        VITE_WEBSOCKET_URL: ${{ secrets.VITE_WEBSOCKET_URL || 'https://vext-ws-server.onrender.com' }}
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4

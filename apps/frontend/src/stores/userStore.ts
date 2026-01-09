@@ -24,8 +24,14 @@ export const useUserStore = defineStore('user', {
             this.isLoading = true
             try {
                 const response = await axios.get('/users/me')
-                if (response.data && response.data.user) {
-                    this.user = sanitizeUser(response.data.user)
+
+                // Elysia returns the user object directly for /users/me, 
+                // whereas Express might have returned { success: true, user: ... }
+                // We check for both structures to support both legacy and new backend.
+                const userData = response.data.user || response.data;
+
+                if (userData && userData.username) {
+                    this.user = sanitizeUser(userData)
                     this.isAuthenticated = true
                 } else {
                     this.isAuthenticated = false

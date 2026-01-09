@@ -16,7 +16,7 @@ export const useNotificationStore = defineStore('notification', {
             {
                 id: '1',
                 title: 'Bienvenue !',
-                message: 'Bienvenue sur Ether. Commencez par explorer la boutique.',
+                message: 'Bienvenue sur VEXT. Commencez par explorer la boutique.',
                 type: 'info',
                 read: false,
                 timestamp: new Date(),
@@ -25,7 +25,7 @@ export const useNotificationStore = defineStore('notification', {
             {
                 id: '2',
                 title: 'Mise à jour',
-                message: 'Une nouvelle version de Ether Chess est disponible.',
+                message: 'Une nouvelle version de VEXT Chess est disponible.',
                 type: 'success',
                 read: true,
                 timestamp: new Date(Date.now() - 86400000) // Yesterday

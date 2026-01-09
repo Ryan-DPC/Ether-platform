@@ -9,27 +9,19 @@ import router from '../router'
 // Get WebSocket URL based on environment
 // Get WebSocket URL based on environment
 const getSocketUrl = () => {
+    // For local development with Elysia + separate Socket.IO port
+    return 'http://localhost:3001';
+
+    /* Original logic commented out for migration
     let url = import.meta.env.VITE_WEBSOCKET_URL;
-
-    // Auto-correct 'ether_server' (Docker) to 'localhost' if we are on the desktop app
-    // This handles the case where user didn't update .env
     const isTauri = !!(window as any).__TAURI__;
-
-    // Removed Docker auto-correct to enforce Production URL
-    if (url && isTauri && url.includes('ether_server')) {
-        // Return null to let fallback handle it
-        return null;
-    }
-
+    if (url && isTauri && url.includes('ether_server')) { return null; }
     if (url) return url;
-
-    // Hardcoded production fallback
     if (import.meta.env.PROD && isTauri) {
         return 'https://server-1-z9ok.onrender.com';
     }
-
-    // Default to production
     return 'https://server-1-z9ok.onrender.com'
+    */
 }
 
 class SocketService {

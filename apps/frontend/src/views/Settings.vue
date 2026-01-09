@@ -139,7 +139,7 @@ const changePassword = async () => {
 
 // === Theme & Plugins Logic ===
 const availableThemes = [
-    { id: 'default', name: 'Ether Default', previewColor: '#ff7eb3' },
+    { id: 'default', name: 'VEXT Default', previewColor: '#ff7eb3' },
     { id: 'cyberpunk', name: 'Cyberpunk', previewColor: '#00f3ff', requiredItem: 'Theme: Cyberpunk' },
     { id: 'retro', name: 'Synthwave Retro', previewColor: '#ff2a6d', requiredItem: 'Theme: Retro' },
     { id: 'minimal', name: 'Minimalist', previewColor: '#ffffff' }
@@ -182,7 +182,7 @@ const addNewPlugin = () => {
       <!-- Sidebar -->
       <div class="settings-sidebar">
         <div class="sidebar-header">
-          <img :src="logo" alt="Ether Logo" class="sidebar-logo" />
+          <img :src="logo" alt="VEXT Logo" class="sidebar-logo" />
         </div>
         <nav class="sidebar-nav">
           <div 
