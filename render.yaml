@@ -3,7 +3,7 @@ services:
   # BACKEND API (REST)
   # --------------------------------------------------------------------------------
   - type: web
-    name: ether-backend
+    name: vext-backend
     env: node
     plan: free # Change to starter/standard for production
     rootDir: apps/backend
@@ -28,12 +28,14 @@ services:
         sync: false
       - key: PostgreSQL_URL
         sync: false
+      - key: PORT
+        sync: false
 
   # --------------------------------------------------------------------------------
   # WEBSOCKET SERVER (Socket.io)
   # --------------------------------------------------------------------------------
   - type: web
-    name: ether-ws-server
+    name: vext-ws-server
     env: node
     plan: free
     rootDir: apps/server
@@ -52,10 +54,12 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: PORT
+        sync: false
 
 # Optional: Add a Static Site for Frontend if you want to deploy it on Render too
 # - type: static
-#   name: ether-frontend
+#   name: vext-frontend
 #   root: apps/frontend
 #   buildCommand: npm install && npm run build
 #   staticPublishPath: dist

@@ -21,8 +21,16 @@ connectDB();
 
 const io = new Server(PORT, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
+        origin: [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://ether-platform.onrender.com",
+            "https://vext-frontend.onrender.com",
+            "https://backend-ether.onrender.com",
+            /\.onrender\.com$/
+        ],
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 
