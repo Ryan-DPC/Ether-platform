@@ -24,6 +24,10 @@ class UsersService {
 
         Object.keys(data).forEach(key => {
             if (allowedUpdates.includes(key)) {
+                // Prevent setting empty email or username which are required/unique
+                if ((key === 'email' || key === 'username') && !data[key]) {
+                    return;
+                }
                 updates[key] = data[key];
             }
         });

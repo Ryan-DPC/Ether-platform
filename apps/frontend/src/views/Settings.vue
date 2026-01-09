@@ -65,18 +65,54 @@ onMounted(async () => {
 
 const saveChanges = async () => {
   statusMessage.value = ''
+  
+  if (!userStore.user) return
+
+  const payload: any = {}
+  let hasChanges = false
+
+  // Check primitive fields
+  if (form.username !== userStore.user.username) {
+      payload.username = form.username
+      hasChanges = true
+  }
+  if (form.email !== userStore.user.email) {
+      payload.email = form.email
+      hasChanges = true
+  }
+  if (form.language !== userStore.user.language) {
+      payload.language = form.language
+      hasChanges = true
+  }
+  if (form.bio !== userStore.user.bio) {
+      payload.bio = form.bio
+      hasChanges = true
+  }
+
+  // Check objects
+  if (JSON.stringify(form.social_links) !== JSON.stringify(userStore.user.social_links)) {
+      payload.social_links = form.social_links
+      hasChanges = true
+  }
+  if (JSON.stringify(form.notification_preferences) !== JSON.stringify(userStore.user.notification_preferences)) {
+      payload.notification_preferences = form.notification_preferences
+      hasChanges = true
+  }
+
+  if (!hasChanges) {
+      statusMessage.value = 'No changes to save.'
+      statusType.value = 'info'
+      setTimeout(() => { statusMessage.value = '' }, 3000)
+      return
+  }
+
   try {
-    await userStore.updateProfile({
-      username: form.username,
-      email: form.email,
-      language: form.language,
-      bio: form.bio,
-      social_links: form.social_links,
-      notification_preferences: form.notification_preferences
-    })
+    await userStore.updateProfile(payload)
     
     // Apply language change only on save
-    locale.value = form.language
+    if (payload.language) {
+        locale.value = payload.language
+    }
     
     statusMessage.value = 'Settings saved successfully!'
     statusType.value = 'success'
