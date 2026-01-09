@@ -13,12 +13,15 @@ class AuthService {
 
         const fullUsername = `${username}#${tag}`;
 
-        const existingUser = await Users.getUserByUsername(fullUsername);
+        const [existingUser, existingEmail] = await Promise.all([
+            Users.getUserByUsername(fullUsername),
+            Users.getUserByEmail(email)
+        ]);
+
         if (existingUser) {
             throw new Error('Ce nom d\'utilisateur avec ce tag est déjà pris.');
         }
 
-        const existingEmail = await Users.getUserByEmail(email);
         if (existingEmail) {
             throw new Error('L\'email est déjà utilisé.');
         }
@@ -63,9 +66,11 @@ class AuthService {
         if (identifier.includes('@')) {
             user = await Users.getUserByEmail(identifier);
         } else {
-            user = await Users.getUserByUsername(identifier);
-            if (!user && !identifier.includes('#')) {
-                // Try to find by base username if no tag provided
+            // Optimization: If no tag provided, don't waste time checking for exact match (which includes tag)
+            if (identifier.includes('#')) {
+                user = await Users.getUserByUsername(identifier);
+            } else {
+                // Try to find by base username
                 user = await Users.getUserByBaseUsername(identifier);
             }
         }
