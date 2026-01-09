@@ -10,12 +10,12 @@ const getBaseURL = () => {
 
     // Hardcoded production fallback for Desktop App
     if (import.meta.env.PROD && isTauri) {
-        return 'https://ether-backend-n24i.onrender.com/api'
+        return 'https://vext-backend.onrender.com/api'
     }
 
     // In Desktop App (Tauri) DEV mode, use production
     if (isTauri) {
-        return 'https://ether-backend-n24i.onrender.com/api'
+        return 'https://vext-backend.onrender.com/api'
     }
 
     // In dev mode (with Vite proxy), use relative path

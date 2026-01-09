@@ -90,12 +90,7 @@ class UsersController {
             }
 
             // Get user's recent game ownership (last 10 games)
-            const GameOwnership = require('../game-ownership/game-ownership.model');
-            const recentGames = await GameOwnership.find({ user_id: userId })
-                .sort({ purchase_date: -1 })
-                .limit(10)
-                .populate('game_id', 'name image_url')
-                .lean();
+            const recentGames = await UsersService.getRecentGames(userId);
 
             res.json({ success: true, games: recentGames });
         } catch (error) {

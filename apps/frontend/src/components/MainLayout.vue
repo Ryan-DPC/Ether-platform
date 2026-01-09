@@ -13,18 +13,18 @@ const layoutStore = useLayoutStore()
 
 let pollInterval;
 
-onMounted(() => {
-  // Poll user profile every 10 seconds to keep tokens/balance updated
-  pollInterval = setInterval(() => {
-    if (userStore.isAuthenticated) {
-      userStore.fetchProfile().catch(err => console.error('Background profile sync failed', err));
-    }
-  }, 10000);
-});
+// onMounted(() => {
+//   // Poll user profile every 10 seconds to keep tokens/balance updated
+//   pollInterval = setInterval(() => {
+//     if (userStore.isAuthenticated) {
+//       userStore.fetchProfile().catch(err => console.error('Background profile sync failed', err));
+//     }
+//   }, 10000);
+// });
 
-onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval);
-});
+// onUnmounted(() => {
+//   if (pollInterval) clearInterval(pollInterval);
+// });
 </script>
 
 <template>

@@ -231,6 +231,18 @@ class UsersService {
     static async getWishlist(userId) {
         return await Users.getWishlist(userId);
     }
+
+    static async getRecentGames(userId) {
+        try {
+            return await GameOwnership.find({ user_id: userId })
+                .sort({ purchase_date: -1 })
+                .limit(10)
+                .populate('game_id', 'name image_url')
+                .lean();
+        } catch (error) {
+            throw new Error(`Erreur lors de la récupération des jeux récents : ${error.message}`);
+        }
+    }
 }
 
 module.exports = UsersService;
