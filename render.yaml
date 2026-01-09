@@ -15,7 +15,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        sync: false # You will enter this in Render Dashboard
+        sync: false
       - key: JWT_SECRET
         value: 66dabdb170c5a3f5433b0e7cc1180d90
       - key: CLOUDINARY_CLOUD_NAME
@@ -27,6 +27,8 @@ services:
       - key: FRONTEND_URL
         sync: false
       - key: PostgreSQL_URL
+        sync: false
+      - key: REDIS_URL
         sync: false
       - key: PORT
         sync: false
