@@ -7,29 +7,48 @@ import { createReadStream, createWriteStream } from 'fs';
 import path from 'path';
 import unzipper from 'unzipper';
 
-// Mock Redis for now
-const redisClient = {
-    isOpen: false,
-    get: async () => null,
-    set: async () => { },
-};
+import { redisService } from '../../services/redis.service';
+
+// Using redisService instead of mock
+const logger = console;
 
 export class GamesService {
     static async getAllGames() {
+        const cacheKey = 'games:all';
+
+        // 1. Try Redis Cache
+        try {
+            const cached = await redisService.get(cacheKey);
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        } catch (e: any) {
+            console.warn('[Games] Redis read error:', e.message);
+        }
+
+        // 2. Try Fetch from Cloudinary
         try {
             const cloudinaryService = new CloudinaryService();
             if (cloudinaryService.isEnabled()) {
                 console.log('[Games] Fetching games metadata from Cloudinary...');
-                return await cloudinaryService.getAllGames();
+                const games = await cloudinaryService.getAllGames();
+
+                // Save to Redis (1 hour TTL)
+                try {
+                    await redisService.set(cacheKey, JSON.stringify(games), { EX: 3600 });
+                } catch (e) { }
+
+                return games;
+            } else {
+                console.warn('[Games] Cloudinary disabled, returning DB games only.');
             }
-
-            console.warn('[Games] Cloudinary disabled, returning DB games only.');
-            return await Games.getAllGames();
-
-        } catch (err: any) {
-            console.error('Error in GamesService.getAllGames :', err);
-            throw new Error('Error fetching games list.');
+        } catch (cloudError: any) {
+            console.error('[Games] Cloudinary fetch failed (Rate Limit?), falling back to DB:', cloudError.message);
+            // Fallback to DB
         }
+
+        // 3. Fallback to DB
+        return await Games.getAllGames();
     }
 
     static async getGameDetails(folderName: string, userId: string | null = null) {

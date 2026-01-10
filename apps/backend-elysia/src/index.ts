@@ -26,7 +26,13 @@ import { setWebSocketServer } from './services/websocket.service';
 // Connect Database
 await connectDB();
 
+import { staticPlugin } from '@elysiajs/static';
+
 const app = new Elysia()
+    .use(staticPlugin({
+        assets: 'public',
+        prefix: '/public'
+    }))
     .use(cors())
     .use(swagger())
     .onRequest(({ request, store }) => {
