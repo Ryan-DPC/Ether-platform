@@ -96,7 +96,7 @@ export const useUserStore = defineStore('user', {
             // Check both storages
             const token = localStorage.getItem('token') || sessionStorage.getItem('token')
 
-            if (token) {
+            if (token && !socketService.isConnected) {
                 console.log('🔌 Connecting to WebSocket (initializeAuth)...')
                 socketService.connect(token)
             }

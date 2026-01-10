@@ -15,6 +15,11 @@ export class NativeSocketService {
     }
 
     public connect(token?: string) {
+        if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+            console.log('⚠️ WS already connected or connecting, skipping...');
+            return;
+        }
+
         this.shouldReconnect = true;
 
         let wsUrl = this.url;
