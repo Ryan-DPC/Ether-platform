@@ -56,8 +56,8 @@ export class GamesService {
 
         // 1. Try Cache
         try {
-            if (redisClient.isOpen) {
-                const cached = await redisClient.get();
+            const cached = await redisService.get(cacheKey);
+            if (cached) {
                 if (cached) {
                     const cachedGame = JSON.parse(cached);
                     return {
