@@ -1,6 +1,5 @@
-import { WebSocket } from 'ws';
-
-const WS_URL = process.env.WS_URL || 'ws://localhost:3002';
+// Using Bun's native WebSocket API
+const WS_URL = "https://vext-ws-server.onrender.com";
 const NUM_CONNECTIONS = 50;
 const MESSAGES_PER_CONNECTION = 10;
 
@@ -20,14 +19,14 @@ async function benchmarkGlobalChat(): Promise<BenchmarkResult> {
     const latencies: number[] = [];
     let messagesReceived = 0;
 
-    // Create connections
+    // Create connections using Bun's native WebSocket
     for (let i = 0; i < NUM_CONNECTIONS; i++) {
         const ws = new WebSocket(`${WS_URL}?token=test_token_${i}`);
         connections.push(ws);
 
-        ws.on('message', (data) => {
+        ws.onmessage = (event: MessageEvent) => {
             try {
-                const message = JSON.parse(data.toString());
+                const message = JSON.parse(event.data as string);
                 if (message.type === 'chat:global-message') {
                     const latency = Date.now() - message.data.timestamp;
                     latencies.push(latency);
@@ -36,7 +35,7 @@ async function benchmarkGlobalChat(): Promise<BenchmarkResult> {
             } catch (e) {
                 // Ignore parse errors
             }
-        });
+        };
     }
 
     // Wait for all connections to open
@@ -44,7 +43,7 @@ async function benchmarkGlobalChat(): Promise<BenchmarkResult> {
         if (ws.readyState === WebSocket.OPEN) {
             resolve(null);
         } else {
-            ws.on('open', resolve);
+            ws.onopen = () => resolve(null);
         }
     })));
 

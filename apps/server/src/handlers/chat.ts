@@ -64,7 +64,7 @@ export const handleChatMessage = async (ws: any, type: string, payload: any) => 
                     type: 'global'
                 };
 
-                WebSocketService.broadcast('chat:global-message', broadcastMessage);
+                WebSocketService.publish('global', 'chat:global-message', broadcastMessage);
 
             } catch (error) {
                 console.error('[chat.handler] Error broadcasting message:', error);
