@@ -6,7 +6,7 @@ services:
     name: vext-backend
     env: node
     plan: free # Change to starter/standard for production
-    rootDir: apps/backend
+    rootDir: apps/backend-elysia
     # Build: Install dependencies (including dev for tsc) and compile TypeScript
     buildCommand: npm install && npm run build
     # Start: Run the compiled JS code
