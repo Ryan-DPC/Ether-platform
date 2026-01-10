@@ -1,11 +1,11 @@
 
 import { Elysia, t } from 'elysia';
-import { websocket } from '@elysiajs/websocket';
+// import { websocket } from '@elysiajs/websocket';
 import { jwt } from '@elysiajs/jwt';
 import { handleWsOpen, handleWsMessage, handleWsClose } from './ws.handlers';
 
 export const wsRoutes = new Elysia()
-    .use(websocket())
+    // .use(websocket())
     .use(jwt({
         name: 'jwt',
         secret: process.env.JWT_SECRET || 'default_secret'
