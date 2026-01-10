@@ -29,6 +29,26 @@ await connectDB();
 const app = new Elysia()
     .use(cors())
     .use(swagger())
+    .onRequest(({ request, store }) => {
+        (store as any).startTime = performance.now();
+    })
+    .onAfterHandle(({ request, set, store }) => {
+        const start = (store as any).startTime;
+        if (start) {
+            const duration = performance.now() - start;
+            const method = request.method;
+            const url = new URL(request.url).pathname;
+            const status = set.status || 200;
+
+            const logMsg = `[${method}] ${url} - ${status} - ${duration.toFixed(2)}ms`;
+
+            if (duration > 200) {
+                console.warn(`⚠️ Slow Request: ${logMsg}`);
+            } else if (process.env.NODE_ENV === 'development') {
+                console.log(logMsg);
+            }
+        }
+    })
     .get('/', () => ({
         success: true,
         message: 'VEXT Backend (Elysia + Native WS) is running',

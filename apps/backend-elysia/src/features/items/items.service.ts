@@ -7,8 +7,9 @@ import BlockchainTx from '../library/blockchainTx.model';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-// Stub Cache
-const redisClient = { isOpen: false, get: async (k: string) => null, set: async (k: string, v: string, o: any) => { } };
+import { redisService } from '../../services/redis.service';
+
+// Stub Cache removed, using redisService
 const logger = { info: console.log, warn: console.warn, error: console.error };
 
 export class ItemsService {
@@ -21,11 +22,9 @@ export class ItemsService {
             const cacheKey = `items:all:${JSON.stringify(filters)}`;
 
             try {
-                if (redisClient.isOpen) {
-                    const cachedData = await redisClient.get(cacheKey);
-                    if (cachedData) {
-                        return JSON.parse(cachedData);
-                    }
+                const cachedData = await redisService.get(cacheKey);
+                if (cachedData) {
+                    return JSON.parse(cachedData);
                 }
             } catch (cacheError: any) {
                 logger.warn('[Items] Redis cache error:', cacheError.message);
@@ -35,9 +34,7 @@ export class ItemsService {
             const formattedDocs = docs.map((d: any) => ({ id: d._id.toString(), ...d }));
 
             try {
-                if (redisClient.isOpen) {
-                    await redisClient.set(cacheKey, JSON.stringify(formattedDocs), { EX: 300 });
-                }
+                await redisService.set(cacheKey, JSON.stringify(formattedDocs), { EX: 300 });
             } catch (cacheError: any) {
                 logger.warn('[Items] Failed to save to Redis:', cacheError.message);
             }
@@ -341,6 +338,9 @@ export class ItemsService {
         } catch (error) {
             logger.error('Erreur lors de l\'achat de l\'item :', error);
             throw error;
+        } finally {
+            // Invalidate cache to reflect stock changes if any (optional, but good practice)
+            // await redisService.deletePattern('items:all:*'); 
         }
     }
 

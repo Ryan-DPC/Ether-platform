@@ -30,6 +30,7 @@ const itemSchema = new Schema<IItem>(
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
 
+itemSchema.index({ is_archived: 1, rarity: 1 });
 itemSchema.index({ name: 'text', description: 'text' });
 export const ItemModel: Model<IItem> = mongoose.models.Item || mongoose.model<IItem>('Item', itemSchema);
 export default ItemModel;

@@ -44,6 +44,7 @@ export const useItemStore = defineStore('item', {
             try {
                 const response = await axios.post('/items/purchase', { itemId })
                 await this.fetchMyItems()
+                await this.fetchStoreItems({}, true) // Force refresh to update 'owned' status
 
                 // Update user tokens immediately
                 const userStore = useUserStore()

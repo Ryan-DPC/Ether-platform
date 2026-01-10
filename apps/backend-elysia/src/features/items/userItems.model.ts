@@ -20,6 +20,8 @@ const userItemSchema = new Schema<IUserItem>(
     { timestamps: false }
 );
 
+// Optimization for fetching user items and equipping check
+userItemSchema.index({ user_id: 1, is_equipped: 1 });
 userItemSchema.index({ user_id: 1, item_id: 1 }, { unique: true });
 export const UserItemModel: Model<IUserItem> = mongoose.models.UserItem || mongoose.model<IUserItem>('UserItem', userItemSchema);
 export default UserItemModel;
