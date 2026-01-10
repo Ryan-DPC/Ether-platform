@@ -26,7 +26,7 @@ const app = new Elysia()
         name: 'jwt',
         secret: process.env.JWT_SECRET || 'default_secret'
     }))
-    .ws('/ws', {
+    .ws('/', {
         async open(ws) {
             const token = (ws as any).data.query.token || (ws as any).data.headers['authorization'];
 
@@ -119,7 +119,7 @@ const app = new Elysia()
             }
         }
     })
-    .get('/', () => 'Ether WebSocket Server (Elysia) Running')
+    // .get('/', () => 'Ether WebSocket Server (Elysia) Running')
     .listen(PORT);
 
 if (app.server) {
