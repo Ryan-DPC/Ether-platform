@@ -48,7 +48,7 @@ services:
     # Build: Install all dependencies
     buildCommand: npm install -g bun && bun install
     # Start: Run the server
-    startCommand: cd apps/server && bun run start
+    startCommand: bun run --filter ether-ws-server start
     envVars:
       - key: NODE_ENV
         value: production
