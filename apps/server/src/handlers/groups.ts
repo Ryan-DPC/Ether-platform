@@ -1,5 +1,5 @@
 import { WebSocketService } from '../services/websocket.service';
-import { GroupsService } from './groups.service';
+import { GroupsService } from '../services/groups.service';
 
 export const handleGroupMessage = async (ws: any, type: string, payload: any) => {
     const userId = ws.data.userId;
@@ -55,7 +55,7 @@ export const handleGroupMessage = async (ws: any, type: string, payload: any) =>
                 const message = await GroupsService.sendMessage(msgGroupId, userId, content);
 
                 // Populate user info for broadcast
-                const user = await import('../users/user.model').then(m => m.default);
+                const user = await import('../models/user.model').then(m => m.default);
                 const userDoc = await user.findById(userId).select('username profile_pic').lean();
 
                 // Broadcast to all group members
