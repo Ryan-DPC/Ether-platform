@@ -5,11 +5,11 @@ services:
   - type: web
     name: vext-backend
     region: frankfurt
-    env: bun
+    env: node
     plan: free # Change to starter/standard for production
     rootDir: apps/backend-elysia
-    # Build: Install dependencies (including dev for tsc) and compile TypeScript
-    buildCommand: bun install && bun run build
+    # Build: Install Bun and dependencies
+    buildCommand: npm install -g bun && bun install && bun run build
     # Start: Run the compiled JS code
     startCommand: bun run start
     envVars:
@@ -42,11 +42,11 @@ services:
   - type: web
     name: vext-ws-server
     region: frankfurt
-    env: bun
+    env: node
     plan: free
     rootDir: apps/server
-    # Build: Install dependencies (just bun install since Bun runs TS directly)
-    buildCommand: bun install
+    # Build: Install Bun and dependencies
+    buildCommand: npm install -g bun && bun install
     # Start: Run the server
     startCommand: bun run start
     envVars:
