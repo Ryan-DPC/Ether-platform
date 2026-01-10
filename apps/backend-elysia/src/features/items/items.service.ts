@@ -71,7 +71,7 @@ export class ItemsService {
                 let itemType = 'other';
                 if (folderName === 'banners') itemType = 'banner';
                 else if (folderName === 'avatar_frames') itemType = 'avatar_frame';
-                else if (folderName === 'profile_pictures') itemType = 'profile_picture';
+                else if (folderName === 'profile_pictures' || folderName === 'avatars') itemType = 'profile_picture';
                 else if (folderName === 'badges') itemType = 'badge';
                 else if (folderName === 'backgrounds') itemType = 'background';
                 else itemType = 'other';

@@ -34,7 +34,8 @@ export const useItemStore = defineStore('item', {
         async fetchMyItems() {
             try {
                 const response = await axios.get('/items/my-items')
-                this.myItems = response.data.items || []
+                // Backend returns array directly, not wrapped
+                this.myItems = Array.isArray(response.data) ? response.data : (response.data.items || [])
             } catch (error) {
                 console.error('Failed to fetch my items:', error)
                 this.myItems = []
@@ -61,6 +62,13 @@ export const useItemStore = defineStore('item', {
             try {
                 const response = await axios.post('/items/equip', { itemId })
                 await this.fetchMyItems()
+
+                // If profile picture was equipped, update user profile to sync avatar
+                if (response.data.profile_pic_url) {
+                    const userStore = useUserStore()
+                    await userStore.fetchProfile()
+                }
+
                 return response.data
             } catch (error) {
                 throw error
