@@ -83,7 +83,11 @@ const app = new Elysia()
 
                     // But wait, in handleWsOpen (backend-elysia), we subscribe users to their own ID.
                     // We need to do the same here.
+                    // Subscribe to user's personal topic for private messages
                     ws.subscribe(`user:${userId}`);
+
+                    // Subscribe to global topic for broadcast messages
+                    ws.subscribe('global');
 
                     friends.forEach((friend: any) => {
                         app.server?.publish(`user:${friend.id}`, JSON.stringify({

@@ -13,8 +13,12 @@
     *   **Chat en temps réel** : Discutez avec vos amis via une messagerie instantanée réactive.
     *   **Lobbies** : Créez des salons pour jouer ensemble ou discuter.
     *   **Notifications** : Soyez alerté en direct des demandes d'amis, des invitations et des transactions.
-*   **Économie** : Gestion de portefeuille multi-devises (CHF, EUR, etc.) et transactions sécurisées.
-*   **Architecture** : Système robuste basé sur des micro-services (Backend API, Serveur WebSocket dédié) utilisant MongoDB et Redis pour la performance.
+*   **Économie** : Gestion de portefeuille multi-devises (VTX, CHF, EUR) et transactions sécurisées.
+*   **Architecture Distribuée** :
+    *   **Backend API (Elysia.js)** : API REST pour opérations CRUD (authentification, jeux, marketplace, items, finance).
+    *   **Serveur WebSocket (Elysia.js)** : Temps réel dédié pour chat, notifications, statut amis, lobbies.
+    *   **Base de données** : MongoDB avec Redis pour le cache haute performance.
+    *   **Frontend Desktop** : Application Tauri (Vue 3 + TypeScript) compilée en exécutable natif.
 
 ---
 
@@ -66,8 +70,8 @@ Ce projet utilise **Docker** pour simplifier l'installation et garantir un envir
 
 Une fois les conteneurs démarrés :
 
-*   **Backend (API)** : [http://localhost:3001](http://localhost:3001)
-*   **Serveur WebSocket** : [http://localhost:3002](http://localhost:3002)
+*   **Backend API (Elysia)** : [http://localhost:3000](http://localhost:3000) - Documentation Swagger : `/swagger`
+*   **Serveur WebSocket** : `ws://localhost:3002` (connexion native WebSocket)
 
 ### Commandes Utiles
 

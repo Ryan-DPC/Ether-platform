@@ -45,5 +45,31 @@ export const handleChatMessage = async (ws: any, type: string, payload: any) => 
                 ws.send(JSON.stringify({ type: 'error', data: { message: 'Failed to send message' } }));
             }
             break;
+
+        case 'chat:broadcast':
+        case 'chat:global':
+            const fromUser = ws.data.userId;
+            const sender = ws.data.username;
+            const globalContent = payload.content || payload;
+
+            console.log(`[chat.handler] Global message from ${sender}:`, globalContent);
+
+            try {
+                // Broadcast to all connected users via 'global' topic
+                const broadcastMessage = {
+                    from_user_id: fromUser,
+                    from_username: sender,
+                    content: globalContent,
+                    created_at: new Date(),
+                    type: 'global'
+                };
+
+                WebSocketService.broadcast('chat:global-message', broadcastMessage);
+
+            } catch (error) {
+                console.error('[chat.handler] Error broadcasting message:', error);
+                ws.send(JSON.stringify({ type: 'error', data: { message: 'Failed to broadcast message' } }));
+            }
+            break;
     }
 };

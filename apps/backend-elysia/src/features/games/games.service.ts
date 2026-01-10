@@ -58,14 +58,12 @@ export class GamesService {
         try {
             const cached = await redisService.get(cacheKey);
             if (cached) {
-                if (cached) {
-                    const cachedGame = JSON.parse(cached);
-                    return {
-                        game: cachedGame,
-                        userOwnsGame: true,
-                        ownershipInfo: null
-                    };
-                }
+                const cachedGame = JSON.parse(cached);
+                return {
+                    game: cachedGame,
+                    userOwnsGame: true,
+                    ownershipInfo: null
+                };
             }
         } catch (e: any) {
             console.warn('[Games] Cache read error:', e.message);
