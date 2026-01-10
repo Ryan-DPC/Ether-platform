@@ -20,16 +20,16 @@ export const reviewsRoutes = new Elysia({ prefix: '/api/games' })
         }
         return { user: payload };
     })
-    .get('/:gameId/reviews', async ({ params: { gameId }, set }) => {
+    .get('/:id/reviews', async ({ params: { id }, set }) => {
         try {
-            const reviews = await ReviewsService.getGameReviews(gameId);
+            const reviews = await ReviewsService.getGameReviews(id);
             return reviews;
         } catch (error: any) {
             set.status = 500;
             return { message: error.message };
         }
     })
-    .post('/:gameId/reviews', async ({ params: { gameId }, body, user, set }) => {
+    .post('/:id/reviews', async ({ params: { id }, body, user, set }) => {
         if (!user || typeof user.id !== 'string') {
             set.status = 401;
             return { message: 'Unauthorized' };
@@ -38,7 +38,7 @@ export const reviewsRoutes = new Elysia({ prefix: '/api/games' })
         const { rating, content } = body;
 
         try {
-            const review = await ReviewsService.addReview(user.id, gameId, rating, content);
+            const review = await ReviewsService.addReview(user.id, id, rating, content);
             set.status = 201;
             return review;
         } catch (error: any) {
