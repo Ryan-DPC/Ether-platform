@@ -21,9 +21,8 @@ import { reviewsRoutes } from './features/reviews/reviews.routes';
 import { statsRoutes } from './features/stats/stats.routes';
 import { devGamesRoutes } from './features/dev-games/dev-games.routes';
 import { adminRoutes } from './features/admin/admin.routes';
-
-import { Server } from 'socket.io';
-import { attachWebSocketBridge } from './features/ws-bridge/ws-bridge.socket';
+import { wsRoutes } from './features/ws/ws.routes';
+import { setWebSocketServer } from './services/websocket.service';
 
 // Connect Database
 await connectDB();
@@ -33,13 +32,14 @@ const app = new Elysia()
     .use(swagger())
     .get('/', () => ({
         success: true,
-        message: 'VEXT Backend (Elysia) is running',
+        message: 'VEXT Backend (Elysia + Native WS) is running',
         version: '1.0.0'
     }))
     .get('/health', () => ({
         status: 'ok',
         uptime: process.uptime()
     }))
+    // HTTP Routes
     .use(authRoutes)
     .use(usersRoutes)
     .use(gamesRoutes)
@@ -56,25 +56,14 @@ const app = new Elysia()
     .use(statsRoutes)
     .use(devGamesRoutes)
     .use(adminRoutes)
+    // WebSocket Routes
+    .use(wsRoutes)
     .listen(3000);
 
-import { setIO } from './socket';
-
-// Initialize Socket.IO on a separate port (3001) to avoid conflict with Elysia/Bun server
-const io = new Server({
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
-
-io.listen(3001);
-
-setIO(io);
-
-attachWebSocketBridge(io);
-
-console.log(
-    `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
-console.log(`🔌 Socket.IO is running on port 3001`);
+// Initialize Global WebSocket Server Reference
+if (app.server) {
+    setWebSocketServer(app.server);
+    console.log(`🦊 Elysia is running at ${app.server.hostname}:${app.server.port} (with Native WebSockets)`);
+} else {
+    console.error('Failed to start Elysia server');
+}

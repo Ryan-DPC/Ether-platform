@@ -2,7 +2,7 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { libraryService } from './library.service';
-import { getIO } from '../../socket';
+import { WebSocketService } from '../../services/websocket.service';
 
 export const libraryRoutes = new Elysia({ prefix: '/api/library' })
     .use(jwt({
@@ -24,13 +24,13 @@ export const libraryRoutes = new Elysia({ prefix: '/api/library' })
 
     // Auth required group
     .guard({
-        beforeHandle: ({ user, set }) => {
+    }, (app) => app
+        .onBeforeHandle(({ user, set }) => {
             if (!user) {
                 set.status = 401;
                 return { message: 'Unauthorized' };
             }
-        }
-    }, (app) => app
+        })
         .get('/debug-fix', async ({ user }) => {
             return await libraryService.debugFix((user as any).id);
         })
@@ -41,13 +41,10 @@ export const libraryRoutes = new Elysia({ prefix: '/api/library' })
 
                 if (result.success) {
                     const userId = (user as any).id;
-                    const io = getIO();
-                    io?.to(userId).emit('transaction:success', {
+                    WebSocketService.publish(userId, 'transaction:success', {
                         game: {
                             game_name: result.game_name,
-                            purchase_price: 0 /* Need to know price, but user already bought. Assuming frontend handles undefined or we default. */
-                            // To do it properly, purchaseGame should return price too.
-                            // But for now, game_name is what I added.
+                            purchase_price: 0
                         },
                         newBalance: result.remainingBalance
                     });
@@ -66,11 +63,10 @@ export const libraryRoutes = new Elysia({ prefix: '/api/library' })
                 const result = await libraryService.purchaseGame((user as any).id, gameId);
                 if (result.success) {
                     const userId = (user as any).id;
-                    const io = getIO();
-                    io?.to(userId).emit('transaction:success', {
+                    WebSocketService.publish(userId, 'transaction:success', {
                         game: {
                             game_name: result.game_name,
-                            purchase_price: 0 // Placeholder
+                            purchase_price: 0
                         },
                         newBalance: result.remainingBalance
                     });
@@ -96,15 +92,14 @@ export const libraryRoutes = new Elysia({ prefix: '/api/library' })
                 const result = await libraryService.purchaseUsedGame((user as any).id, gameKey, sellerId);
 
                 if (result.success) {
-                    const io = getIO();
                     // Notification to buyer
-                    io?.to((user as any).id).emit('transaction:success', {
+                    WebSocketService.publish((user as any).id, 'transaction:success', {
                         game: { game_name: 'Used Game', purchase_price: result.sellerAmount },
                         newBalance: (user as any).tokens
                     });
 
                     // Notification to seller
-                    io?.to(sellerId).emit('transaction:seller_notification', {
+                    WebSocketService.publish(sellerId, 'transaction:seller_notification', {
                         message: `You sold a game for ${result.sellerAmount} CHF`
                     });
                 }

@@ -30,7 +30,7 @@ export const reviewsRoutes = new Elysia({ prefix: '/api/games' })
         }
     })
     .post('/:gameId/reviews', async ({ params: { gameId }, body, user, set }) => {
-        if (!user) {
+        if (!user || typeof user.id !== 'string') {
             set.status = 401;
             return { message: 'Unauthorized' };
         }

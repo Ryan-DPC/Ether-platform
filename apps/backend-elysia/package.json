@@ -12,6 +12,7 @@
         "@elysiajs/cors": "latest",
         "@elysiajs/jwt": "latest",
         "@elysiajs/swagger": "latest",
+        "@elysiajs/websocket": "latest",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/unzipper": "^0.10.11",
         "@types/uuid": "^11.0.0",

@@ -35,7 +35,7 @@ export class ReviewsService {
         // Transform populate result
         return reviews.map((r: any) => ({
             id: r._id,
-            user: {
+            user_id: {
                 id: r.user_id._id,
                 username: r.user_id.username,
                 profile_pic: r.user_id.profile_pic
