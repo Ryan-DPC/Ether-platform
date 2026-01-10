@@ -4,13 +4,13 @@ services:
   # --------------------------------------------------------------------------------
   - type: web
     name: vext-backend
-    env: node
+    env: bun
     plan: free # Change to starter/standard for production
     rootDir: apps/backend-elysia
     # Build: Install dependencies (including dev for tsc) and compile TypeScript
-    buildCommand: npm install && npm run build
+    buildCommand: bun install && bun run build
     # Start: Run the compiled JS code
-    startCommand: npm start
+    startCommand: bun run start
     envVars:
       - key: NODE_ENV
         value: production
