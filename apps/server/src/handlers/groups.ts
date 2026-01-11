@@ -64,8 +64,8 @@ export const handleGroupMessage = async (ws: any, type: string, payload: any) =>
                     group_id: msgGroupId,
                     user: {
                         id: userId,
-                        username: userDoc?.username || username,
-                        profile_pic: userDoc?.profile_pic
+                        username: (userDoc as any)?.username || username,
+                        profile_pic: (userDoc as any)?.profile_pic
                     },
                     content: message.content,
                     created_at: message.created_at

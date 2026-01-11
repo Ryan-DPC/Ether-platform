@@ -1,10 +1,7 @@
-import LinkGroupModel from '../models/group.model';
-import LinkGroupMessageModel from '../models/groupMessage.model';
-import User from '../models/user.model';
+import GroupModel from '../models/group.model';
+import { GroupMessageModel } from '../models/groupMessage.model';
+import User from '../models/user.model'; // Ensure User model is registered
 import mongoose from 'mongoose';
-
-const GroupModel = LinkGroupModel;
-const GroupMessageModel = LinkGroupMessageModel;
 
 export interface IGroup {
     id: string;
@@ -52,14 +49,20 @@ export class GroupsService {
             .sort({ updated_at: -1 })
             .lean();
 
+        // Debug logging for populate check
+        console.log('[GroupsService.getMyGroups] Fetched groups count:', groups.length);
+        if (groups.length > 0) {
+            console.log('[GroupsService.getMyGroups] First group members sample:', JSON.stringify(groups[0].members[0] || 'empty'));
+        }
+
         return groups.map(group => ({
             id: group._id.toString(),
             name: group.name,
             description: group.description,
             owner_id: group.owner_id.toString(),
             members: (group.members as any[]).map(m => ({
-                id: m._id.toString(),
-                username: m.username,
+                id: m._id ? m._id.toString() : 'unknown', // Handle cases where m is missing or not populated
+                username: m.username || 'Unknown',
                 profile_pic: m.profile_pic,
                 is_online: !!m.socket_id
             })),
@@ -211,7 +214,7 @@ export class GroupsService {
             .populate('user_id', 'username profile_pic')
             .lean();
 
-        return messages.reverse().map(msg => ({
+        return messages.reverse().map((msg: any) => ({
             id: msg._id.toString(),
             group_id: msg.group_id.toString(),
             user: msg.user_id,

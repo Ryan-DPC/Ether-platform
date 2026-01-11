@@ -21,6 +21,10 @@ const userSchema = new Schema(
             type: String,
             required: true
         },
+        profile_pic: {
+            type: String,
+            default: ''
+        },
         socket_id: {
             type: String,
             default: null
