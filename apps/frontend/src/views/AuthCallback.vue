@@ -8,7 +8,7 @@ onMounted(() => {
     const code = route.query.code as string
     if (code) {
         // Redirect to backend with the code
-        window.location.href = `https://backend-ether.onrender.com/api/auth/github/callback?code=${code}`
+        window.location.href = `https://vext-backend.onrender.com/api/auth/github/callback?code=${code}`
     } else {
         // If no code, go back to login
         window.location.href = '/login?error=No+code+received'

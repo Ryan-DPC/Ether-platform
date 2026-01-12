@@ -1,5 +1,5 @@
 {
-    "name": "ether-ws-server",
+    "name": "vext-ws-server",
     "version": "1.0.0",
     "description": "Vext WebSocket Server",
     "main": "src/index.js",
@@ -18,7 +18,8 @@
         "mongoose": "^8.9.5",
         "node-cron": "^4.2.1",
         "redis": "^5.10.0",
-        "winston": "^3.19.0"
+        "winston": "^3.19.0",
+        "@vext/database": "workspace:*"
     },
     "devDependencies": {
         "bun-types": "latest"

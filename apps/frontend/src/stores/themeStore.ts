@@ -3,33 +3,33 @@ import { ref } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
     // State
-    const currentTheme = ref(localStorage.getItem('ether_theme') || 'default')
-    const darkMode = ref(localStorage.getItem('ether_dark_mode') !== 'false') // Default to true
+    const currentTheme = ref(localStorage.getItem('vext_theme') || 'default')
+    const darkMode = ref(localStorage.getItem('vext_dark_mode') !== 'false') // Default to true
 
     // Plugins (Mock for now, as per request to add the section)
-    const plugins = ref(JSON.parse(localStorage.getItem('ether_plugins') || '[]'))
+    const plugins = ref(JSON.parse(localStorage.getItem('vext_plugins') || '[]'))
 
     // Actions
     function setTheme(theme: string) {
         currentTheme.value = theme
-        localStorage.setItem('ether_theme', theme)
+        localStorage.setItem('vext_theme', theme)
         applyTheme()
     }
 
     function toggleDarkMode() {
         darkMode.value = !darkMode.value
-        localStorage.setItem('ether_dark_mode', String(darkMode.value))
+        localStorage.setItem('vext_dark_mode', String(darkMode.value))
         applyTheme()
     }
 
     function addPlugin(plugin: { name: string, version: string, enabled: boolean }) {
         plugins.value.push(plugin)
-        localStorage.setItem('ether_plugins', JSON.stringify(plugins.value))
+        localStorage.setItem('vext_plugins', JSON.stringify(plugins.value))
     }
 
     function removePlugin(index: number) {
         plugins.value.splice(index, 1)
-        localStorage.setItem('ether_plugins', JSON.stringify(plugins.value))
+        localStorage.setItem('vext_plugins', JSON.stringify(plugins.value))
     }
 
     function applyTheme() {

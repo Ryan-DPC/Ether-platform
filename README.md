@@ -81,7 +81,7 @@ Follow these steps to set up Vext locally for development.
     *   **Full Local Stack (Optional)**:
         If you want to work on the Backend API:
         1.  Start DB/Redis: `docker-compose -f docker-compose.infra.yml up -d`
-        2.  Run Backend: `cd apps/backend-elysia && bun run dev`
+        2.  Run Backend: `cd apps/backend && bun run dev`
         3.  Run WebSocket: `cd apps/server && bun run dev`
 
 ## 🤝 Contributing

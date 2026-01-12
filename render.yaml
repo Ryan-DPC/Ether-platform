@@ -9,35 +9,29 @@ services:
     plan: free # Change to starter/standard for production
     rootDir: . # Root context for Monorepo
     # Build: Install all dependencies, then build backend
-    buildCommand: npm install -g bun && bun install && cd apps/backend-elysia && bun run build
+    buildCommand: npm install -g bun && bun install && cd apps/backend && bun run build
     # Start: Run the compiled JS code
-    startCommand: cd apps/backend-elysia && bun run start
+    startCommand: cd apps/backend && bun run start
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
-        value: 66dabdb170c5a3f5433b0e7cc1180d90
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      - key: FRONTEND_URL
-        sync: false
-      - key: PostgreSQL_URL
-        sync: false
       - key: REDIS_URL
         sync: false
       - key: PORT
         sync: false
-      - key: BACKEND_URL
-        sync: false
 
   # --------------------------------------------------------------------------------
-  # WEBSOCKET SERVER (Socket.io)
+  # WEBSOCKET SERVER (Socket.io/Elysia)
   # --------------------------------------------------------------------------------
   - type: web
     name: vext-ws-server
@@ -48,28 +42,15 @@ services:
     # Build: Install all dependencies
     buildCommand: npm install -g bun && bun install
     # Start: Run the server
-    startCommand: bun run --filter ether-ws-server start
+    startCommand: bun run --filter vext-ws-server start
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
-        value: 66dabdb170c5a3f5433b0e7cc1180d90
-      - key: REDIS_URL
         sync: false
-      - key: ALLOWED_ORIGINS
+      - key: REDIS_URL
         sync: false
       - key: PORT
         sync: false
-
-# Optional: Add a Static Site for Frontend if you want to deploy it on Render too
-# - type: static
-#   name: vext-frontend
-#   root: apps/frontend
-#   buildCommand: npm install && npm run build
-#   staticPublishPath: dist
-#   routes:
-#     - type: rewrite
-#       source: /**
-#       destination: /index.html

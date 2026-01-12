@@ -5,7 +5,11 @@ import { connectDB } from './config/db';
 import { UsersService } from './services/users.service';
 import { setWebSocketServer } from './services/websocket.service';
 import { handleWsMessage, handleWsDisconnect } from './socket.handlers';
-// import { versionCheckerJob } from './jobs/version-checker.job'; // Need to port this
+import { VersionCheckerJob } from './jobs/version-checker.job';
+
+// Initialize and start VersionChecker
+const versionChecker = new VersionCheckerJob();
+versionChecker.start();
 
 const PORT = process.env.PORT || 3002;
 
@@ -140,7 +144,7 @@ const app = new Elysia()
             }
         }
     })
-    // .get('/', () => 'Ether WebSocket Server (Elysia) Running')
+    // .get('/', () => 'Vext WebSocket Server (Elysia) Running')
     .listen(PORT);
 
 if (app.server) {

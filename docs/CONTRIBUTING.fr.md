@@ -9,7 +9,7 @@ Voici quelques directives pour contribuer à Vext. Ce sont des conseils, pas des
 Vext est un monorepo géré avec **Bun Workspaces**.
 
 - **apps/frontend** : Application Desktop construite avec **Tauri** + **Vue 3**.
-- **apps/backend-elysia** : API REST principale avec **Elysia.js**.
+- **apps/backend** : API REST principale avec **Elysia.js**.
 - **apps/server** : Serveur WebSocket pour le temps réel.
 - **packages/database** : Schémas MongoDB partagés et logique de connexion.
 - **infra** : Configuration Docker pour le développement local.
@@ -53,7 +53,7 @@ Vext est un monorepo géré avec **Bun Workspaces**.
         docker-compose -f docker-compose.infra.yml up -d
         
         # Démarrer les services
-        cd apps/backend-elysia && bun run dev
+        cd apps/backend && bun run dev
         cd apps/server && bun run dev
         ```
 

@@ -1,51 +1,51 @@
 services:
   mongo:
     image: mongo:latest
-    container_name: ether_mongo
+    container_name: vext_mongo
     command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27017" ]
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     networks:
-      - ether-net
+      - vext-net
 
   redis:
     image: redis:alpine
-    container_name: ether_redis
+    container_name: vext_redis
     ports:
       - "6379:6379"
     networks:
-      - ether-net
+      - vext-net
 
   postgres:
     image: postgres:16
-    container_name: ether_postgres
+    container_name: vext_postgres
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-ether_finance}
+      POSTGRES_DB: ${POSTGRES_DB:-vext_finance}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - ether-net
+      - vext-net
 
   server:
     build: ./server
-    container_name: ether_server
+    container_name: vext_server
     ports:
       - "3002:3002"
     env_file:
       - .env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/ether
+      - MONGO_URI=mongodb://mongo:27017/vext
       - REDIS_URL=redis://redis:6379
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-ether_finance}
+      - POSTGRES_DB=${POSTGRES_DB:-vext_finance}
       - WS_PORT=3002
       - SERVER_ROLE=launcher # Role identifier
     depends_on:
@@ -56,22 +56,22 @@ services:
       - ./server:/app
       - /app/node_modules
     networks:
-      - ether-net
+      - vext-net
 
   games-server:
     build: ./server
-    container_name: ether_games_server
+    container_name: vext_games_server
     ports:
       - "3003:3003"
     env_file:
       - .env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/ether
+      - MONGO_URI=mongodb://mongo:27017/vext
       - REDIS_URL=redis://redis:6379
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-ether_finance}
+      - POSTGRES_DB=${POSTGRES_DB:-vext_finance}
       - WS_PORT=3003
       - SERVER_ROLE=games # Role identifier
     depends_on:
@@ -82,11 +82,11 @@ services:
       - ./server:/app
       - /app/node_modules
     networks:
-      - ether-net
+      - vext-net
 
 networks:
-  ether-net:
-    name: ether-net
+  vext-net:
+    name: vext-net
     driver: bridge
 
 volumes:

@@ -9,7 +9,7 @@ The following is a set of guidelines for contributing to Vext. These are mostly 
 Vext is a monorepo managed with **Bun Workspaces**.
 
 - **apps/frontend**: Desktop application built with **Tauri** + **Vue 3**.
-- **apps/backend-elysia**: Main REST API built with **Elysia.js**.
+- **apps/backend**: Main REST API built with **Elysia.js**.
 - **apps/server**: WebSocket server for real-time features.
 - **packages/database**: Shared MongoDB schemas and connection logic.
 - **infra**: Docker configurations for local development.
@@ -36,7 +36,7 @@ Vext is a monorepo managed with **Bun Workspaces**.
     ```
 
 3.  **Environment Variables**
-    Copy `.env.example` to `.env` in `apps/frontend`, `apps/backend-elysia`, and root if necessary.
+    Copy `.env.example` to `.env` in `apps/frontend`, `apps/backend`, and root if necessary.
 
 4.  **Start Development**
     
@@ -53,7 +53,7 @@ Vext is a monorepo managed with **Bun Workspaces**.
         docker-compose -f docker-compose.infra.yml up -d
         
         # Start Services
-        cd apps/backend-elysia && bun run dev
+        cd apps/backend && bun run dev
         cd apps/server && bun run dev
         ```
 

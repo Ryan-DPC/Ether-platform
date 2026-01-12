@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import mongoose from 'mongoose';
 import { WebSocketService } from '../services/websocket.service';
+import { GameInstallationModel } from '@vext/database';
 
 export class VersionCheckerJob {
     private job: any = null;
@@ -24,13 +25,8 @@ export class VersionCheckerJob {
 
     async checkAllGamesForUpdates() {
         try {
-            // Define schemas inline to avoid import issues or import them if available
-            // Assuming these models are available or will be replaced with proper imports
-            const GameInstallation = mongoose.models.GameInstallation || mongoose.model('GameInstallation', new mongoose.Schema({}, { strict: false }));
-            // const Game = mongoose.models.Game || mongoose.model('Game', new mongoose.Schema({}, { strict: false }));
-
             // Get all installed games
-            const installations = await GameInstallation.find({ status: 'installed' })
+            const installations = await GameInstallationModel.find({ status: 'installed' })
                 .populate('user_id')
                 .populate('game_id')
                 .lean();
@@ -72,7 +68,7 @@ export class VersionCheckerJob {
                         console.log(`[VersionChecker] Update available for ${game.game_name}: ${installation.version} -> ${manifest.version}`);
 
                         // Update installation status
-                        await GameInstallation.findByIdAndUpdate(installation._id, {
+                        await GameInstallationModel.findByIdAndUpdate(installation._id, {
                             status: 'pending_update',
                             last_checked: new Date()
                         });
@@ -92,7 +88,7 @@ export class VersionCheckerJob {
                         updatesFound++;
                     } else {
                         // Update last checked timestamp
-                        await GameInstallation.findByIdAndUpdate(installation._id, {
+                        await GameInstallationModel.findByIdAndUpdate(installation._id, {
                             last_checked: new Date()
                         });
                     }
