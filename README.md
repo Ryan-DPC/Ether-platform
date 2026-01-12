@@ -1,4 +1,4 @@
-# Ether
+# VEXT
 
 ## 1. Présentation du Projet
 
