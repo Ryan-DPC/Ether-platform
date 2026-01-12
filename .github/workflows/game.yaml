@@ -177,24 +177,26 @@ jobs:
       - name: 📊 Build summary
         shell: powershell
         run: |
-          echo "## 🎮 Aether Strike Build Summary" >> $env:GITHUB_STEP_SUMMARY
-          echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $env:GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $env:GITHUB_STEP_SUMMARY
-          echo "| **Game** | Aether Strike |" >> $env:GITHUB_STEP_SUMMARY
-          echo "| **Version** | 0.1.0 |" >> $env:GITHUB_STEP_SUMMARY
-          echo "| **Platform** | Windows x64 |" >> $env:GITHUB_STEP_SUMMARY
-          echo "| **Size** | ${{ steps.build_info.outputs.exe_size }} |" >> $env:GITHUB_STEP_SUMMARY
-          echo "| **Build Date** | ${{ steps.build_info.outputs.build_date }} |" >> $env:GITHUB_STEP_SUMMARY
-          echo "| **Commit** | ${{ github.sha }} |" >> $env:GITHUB_STEP_SUMMARY
-          echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "### 📥 Downloads" >> $env:GITHUB_STEP_SUMMARY
-          echo '- Game files: `aether_strike_release_${{ github.sha }}`' >> $env:GITHUB_STEP_SUMMARY
-          echo '- Archive: `aether_strike_archive`' >> $env:GITHUB_STEP_SUMMARY
-          echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "### 🚀 VEXT Integration" >> $env:GITHUB_STEP_SUMMARY
-          echo "Game package is ready for VEXT launcher integration." >> $env:GITHUB_STEP_SUMMARY
-          echo 'Metadata file included: `game_metadata.json`' >> $env:GITHUB_STEP_SUMMARY
+          @'
+          ## 🎮 Aether Strike Build Summary
+          
+          | Property | Value |
+          |----------|-------|
+          | **Game** | Aether Strike |
+          | **Version** | 0.1.0 |
+          | **Platform** | Windows x64 |
+          | **Size** | ${{ steps.build_info.outputs.exe_size }} |
+          | **Build Date** | ${{ steps.build_info.outputs.build_date }} |
+          | **Commit** | ${{ github.sha }} |
+          
+          ### 📥 Downloads
+          - Game files: `aether_strike_release_${{ github.sha }}`
+          - Archive: `aether_strike_archive`
+          
+          ### 🚀 VEXT Integration
+          Game package is ready for VEXT launcher integration.
+          Metadata file included: `game_metadata.json`
+          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
   # Job optionnel : Créer une release GitHub si on tag
   create-release:
