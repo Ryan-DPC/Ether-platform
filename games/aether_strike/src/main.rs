@@ -36,11 +36,25 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // État du jeu
-    let mut current_screen = GameScreen::MainMenu;
+    // Gestion des arguments de lancement (VEXT Integration)
+    let args: Vec<String> = std::env::args().collect();
+    let mut vext_username = "GuestPlayer".to_string();
+    let mut vext_token = String::new();
     
-    // Profil du joueur (mock du launcher VEXT)
-    let mut player_profile = PlayerProfile::new("YourUsername".to_string()); // TODO: Lire depuis VEXT
+    // Parser les arguments
+    for i in 0..args.len() {
+        if args[i] == "--vext-user-id" && i + 1 < args.len() {
+            vext_username = args[i + 1].clone();
+            println!("✅ VEXT Integration: Logged in as {}", vext_username);
+        }
+        if args[i] == "--vext-token" && i + 1 < args.len() {
+            vext_token = args[i + 1].clone();
+            println!("🔐 VEXT Integration: Token received");
+        }
+    }
+
+    // Profil du joueur
+    let mut player_profile = PlayerProfile::new(vext_username);
     // Ajouter quelques amis pour test
     player_profile.add_friend("MaxGamer42", true);
     player_profile.add_friend("ShadowNinja", false);
