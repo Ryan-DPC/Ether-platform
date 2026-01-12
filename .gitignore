@@ -36,20 +36,7 @@ yarn-error.log*
 .env.frontend
 
 # Rust / Game Development
-# Ignore Rust build artifacts
-games/**/target/
-games/**/Cargo.lock
+# Le dossier games/ n'est pas tracké sur main (seulement sur develop)
+games/
 
-# Ignore Rust incremental compilation
-games/**/*.rs.bk
-
-# Ignore game distribution folders
-games/**/dist/
-games/**/*.zip
-games/**/*.exe
-
-# But keep source code
-!games/**/src/
-!games/**/Cargo.toml
-!games/**/*.md
-!games/**/*.rs
+# Note: Pour forcer le tracking sur develop, utiliser: git add -f games/

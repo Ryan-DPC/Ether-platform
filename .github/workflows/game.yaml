@@ -3,7 +3,6 @@ name: Aether Strike - Game Build & Release
 on:
   push:
     branches:
-      - main
       - develop
     paths:
       - 'games/aether_strike/**'
