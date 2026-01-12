@@ -1,7 +1,7 @@
 {
     "name": "ether-ws-server",
     "version": "1.0.0",
-    "description": "Ether WebSocket Server",
+    "description": "Vext WebSocket Server",
     "main": "src/index.js",
     "scripts": {
         "start": "bun run src/index.ts",

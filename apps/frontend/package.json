@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Ether Gaming Platform",
-  "author": "Ether Team",
+  "description": "Vext Gaming Platform",
+  "author": "Vext Team",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",

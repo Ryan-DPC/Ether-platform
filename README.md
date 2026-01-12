@@ -1,88 +1,101 @@
 # VEXT
 
-## 1. Présentation du Projet
+<div align="center">
 
-**Ether** est une plateforme moderne de distribution de jeux vidéo et un réseau social intégré pour les joueurs. Conçue pour offrir une expérience fluide et immersive, elle combine les fonctionnalités d'un marketplace de jeux avec des outils sociaux en temps réel.
+  ![Vext Banner](https://via.placeholder.com/1200x400?text=VEXT+Gaming+Platform)
+  
+  **The Next-Gen Decentralized Gaming Platform & Social Network**
+  
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Tauri](https://img.shields.io/badge/Tauri-2.0-blue)](https://tauri.app)
+  [![Bun](https://img.shields.io/badge/Bun-1.0-orange)](https://bun.sh)
+  [![Vue 3](https://img.shields.io/badge/Vue-3.0-42b883)](https://vuejs.org)
+  [![ElysiaJS](https://img.shields.io/badge/Elysia-JS-ff0050)](https://elysiajs.com)
 
-### Fonctionnalités Clés :
+  [Features](#-features) • [Architecture](#-architecture) • [Getting Started](#-getting-started) • [Contributing](#-contributing)
 
-*   **Marketplace & Boutique** : Achetez et vendez des jeux. Les développeurs peuvent publier leurs créations et les joueurs peuvent revendre leurs copies numériques (système de propriété unique).
-*   **Bibliothèque de Jeux** : Gérez votre collection, installez et lancez vos jeux directement depuis l'application.
-*   **Social & Communauté** :
-    *   **Système d'amis** : Ajoutez des amis, voyez leur statut en ligne/en jeu.
-    *   **Chat en temps réel** : Discutez avec vos amis via une messagerie instantanée réactive.
-    *   **Lobbies** : Créez des salons pour jouer ensemble ou discuter.
-    *   **Notifications** : Soyez alerté en direct des demandes d'amis, des invitations et des transactions.
-*   **Économie** : Gestion de portefeuille multi-devises (VTX, CHF, EUR) et transactions sécurisées.
-*   **Architecture Distribuée** :
-    *   **Backend API (Elysia.js)** : API REST pour opérations CRUD (authentification, jeux, marketplace, items, finance).
-    *   **Serveur WebSocket (Elysia.js)** : Temps réel dédié pour chat, notifications, statut amis, lobbies.
-    *   **Base de données** : MongoDB avec Redis pour le cache haute performance.
-    *   **Frontend Desktop** : Application Tauri (Vue 3 + TypeScript) compilée en exécutable natif.
+</div>
 
 ---
 
-## 2. Mise en place de l'application
+## 🚀 Overview
 
-Ce projet utilise **Docker** pour simplifier l'installation et garantir un environnement de développement cohérent.
+**Vext** is a modern game distribution platform designed to bridge the gap between players and developers. More than just a store, Vext is a fully integrated social ecosystem offering real-time interaction, lobbies, and a seamless desktop experience.
 
-### Prérequis
-*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) installé et lancé.
-*   Git pour cloner le projet.
+Built with performance in mind using **Rust (Tauri)** and **Bun**, Vext delivers a native-like feel with the flexibility of web technologies.
+
+## ✨ Features
+
+- **🎮 Digital Marketplace**: Buy, sell, and manage your game library with a unique ownership system.
+- **💬 Social Hub**: Real-time chat, friends system, and status updates via specialized WebSocket architecture.
+- **🔌 Lobbies & Matchmaking**: Create rooms, invite friends, and launch games together seamlessly.
+- **⚡ Native Performance**: Powered by Tauri for an ultra-lightweight and fast desktop experience (Windows/Linux/macOS).
+- **💰 Economy**: integrated multi-currency wallet support (VTX, CHF, EUR).
+
+## 🏗️ Architecture
+
+Vext operates as a **Monorepo** powered by **Bun Workspaces**.
+
+| Component | Tech Stack | Description |
+| :--- | :--- | :--- |
+| **Frontend** | **Tauri** + **Vue 3** + **TypeScript** | The desktop client application. |
+| **Backend API** | **Elysia.js** + **Bun** | High-performance REST API for Authentication, Marketplace, and Users. |
+| **Real-time Server** | **Elysia.js** (WebSocket) | Dedicated socket server for Chat, Notifications, and Lobbies. |
+| **Database** | **MongoDB** + **Redis** | Data persistence and high-speed caching layer. |
+| **Infrastructure** | **Docker** | Containerized deployment for all backend services. |
+
+## 🛠️ Getting Started
+
+Follow these steps to set up Vext locally for development.
+
+### Prerequisites
+- **Docker Desktop** (Required for DB/Redis)
+- **Bun** (Latest version)
+- **Rust** (Required for Tauri)
 
 ### Installation
 
-1.  **Configuration de l'environnement**
-    Assurez-vous d'avoir un fichier `.env` à la racine du projet contenant toutes les variables nécessaires (Ports, URIs Base de données, Clés API Cloudinary, Secrets JWT, etc.).
-    *Si un fichier `env.example` est fourni, vous pouvez le copier en `.env` et le remplir.*
-
-2.  **Lancement de l'Infrastructure & Backend**
-    Démarrez les services (Base de données, Redis, WebSocket) et l'API Backend :
+1.  **Clone the Repo**
     ```bash
-    docker-compose -f docker-compose.infra.yml up -d
-    docker-compose -f docker-compose.app.yml up -d --build
+    git clone https://github.com/your-username/vext.git
+    cd vext
     ```
 
-3.  **Ajouter des Fonds aux Utilisateurs**
-    Pour ajouter des fonds (CHF) à tous les comptes utilisateurs existants, vous pouvez utiliser le script fourni.
-    *   Assurez-vous que les conteneurs sont lancés (étape 2).
-    *   Exécutez le script via Docker (pas besoin d'installer Node.js localement) :
+2.  **Install Dependencies**
+    ```bash
+    bun install
+    ```
+
+3.  **Configure Environment**
+    Create a `.env` file in the root (and apps if needed) based on `.env.example`.
+
+4.  **Start the Application**
+    
+    By default, the Frontend connects to the **Render hosted backend**. You don't need to run the server locally.
+
+    *   **Frontend Only (Recommended)**:
         ```bash
-        docker-compose -f docker-compose.infra.yml exec server node scripts/add_funds.js
+        cd apps/frontend && bun run tauri dev
         ```
-        *Par défaut, le script ajoute **100 CHF** à chaque utilisateur. Pour modifier ce montant, éditez le fichier `server/scripts/add_funds.js` (ligne 46).*
-        
-    *   Le script affichera les utilisateurs mis à jour et leur nouveau solde dans la console.
 
-3.  **Application Desktop (Frontend)**
-    Le frontend est une application **Tauri** (Desktop) construite avec Vue 3.
-    *   **Développement local** :
-        ```bash
-        cd frontend
-        npm install
-        npm run tauri dev
-        ```
-    *   **Production (Build)** :
-        Le projet est configuré avec **GitHub Actions** pour générer automatiquement l'exécutable Windows (`.exe`) à chaque push sur la branche principale.
-        Vous pouvez récupérer l'installateur dans les "Artifacts" de l'action GitHub.
+    *   **Full Local Stack (Optional)**:
+        If you want to work on the Backend API:
+        1.  Start DB/Redis: `docker-compose -f docker-compose.infra.yml up -d`
+        2.  Run Backend: `cd apps/backend-elysia && bun run dev`
+        3.  Run WebSocket: `cd apps/server && bun run dev`
 
-### Accès
+## 🤝 Contributing
 
-Une fois les conteneurs démarrés :
+We welcome contributions from the community! Whether it's a bug fix, new feature, or documentation improvement.
 
-*   **Backend API (Elysia)** : [http://localhost:3000](http://localhost:3000) - Documentation Swagger : `/swagger`
-*   **Serveur WebSocket** : `ws://localhost:3002` (connexion native WebSocket)
+Please read our [**Contributing Guide**](docs/CONTRIBUTING.md) and [**Code of Conduct**](docs/CODE_OF_CONDUCT.md) located in the `docs/` folder before getting started.
 
-### Commandes Utiles
+## 📄 License
 
-*   **Arrêter tous les services** :
-    ```bash
-    docker-compose -f docker-compose.app.yml down
-    docker-compose -f docker-compose.infra.yml down
-    ```
-*   **Voir les logs** :
-    ```bash
-    docker logs -f ether_backend  # Pour le backend
-    docker logs -f ether_frontend # Pour le frontend
-    docker logs -f ether_server   # Pour le serveur WebSocket
-    ```
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ by the Vext Team</sub>
+</div>
