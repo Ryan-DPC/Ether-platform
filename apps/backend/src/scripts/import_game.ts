@@ -117,33 +117,55 @@ const main = async () => {
         console.log(`✅ Game imported successfully: ${game.game_name} (ID: ${game._id})`);
 
         // 5. Invalidate Cache
-        // We need to import redisService dynamically or ensure connection is handled
-        // But redisService is exported as a singleton instance from the service file.
-        // We just need to import it at the top level, but wait, connection logic might need ensuring.
-        // redisService.connect() is called inside its methods, so just calling .del() is fine.
+        const ADMIN_SECRET = process.env.ADMIN_SECRET;
+        const BACKEND_URL = process.env.VITE_API_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+        // Note: VITE_API_URL is usually frontend env, backend might have BACKEND_URL or just PORT. 
+        // Let's assume user reads logs or sets it. 
+        // Actually, for this specific user, they are running against prod DB so likely want to hit prod backend.
+        // But let's default to localhost if not set, and warn.
 
-        try {
-            // Import redisService locally or use the one if we imported it
-            // Let's rely on the import I will add at the top
-            const { redisService } = await import('../services/redis.service');
+        if (ADMIN_SECRET) {
+            console.log(`🧹 Invalidating cache via Remote API at ${BACKEND_URL}...`);
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/admin/cache/clear`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Secret': ADMIN_SECRET
+                    },
+                    body: JSON.stringify({
+                        keys: ['games:all'],
+                        patterns: [`game:details:*${manifest.folder_name}*`]
+                    })
+                });
 
-            // Suppress default console.error listener for this brief operation to avoid noise if down
-            //  redisService['client'].removeAllListeners('error');
-            //  redisService['client'].on('error', (e) => {}); // Silent
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Remote Cache Invalidated:', result);
+                } else {
+                    console.warn(`⚠️ Failed to clear remote cache: ${response.status} ${response.statusText}`);
+                    const text = await response.text();
+                    console.warn('Response:', text);
+                }
 
-            console.log('🧹 Invalidating cache...');
-            // Attempt invalidation with short timeout or just try/catch
-            await redisService.del('games:all');
-            // Also invalidate details for this game just in case
-            await redisService.deletePattern(`game:details:*${manifest.folder_name}*`);
-            console.log('✅ Cache invalidated.');
-        } catch (cacheError: any) {
-            console.warn('⚠️ Could not invalidate cache (Redis may be down or unreachable):', cacheError.message || cacheError);
-            console.warn('ℹ️ You may need to restart the backend or wait for cache expiry to see changes.');
+            } catch (err: any) {
+                console.warn('⚠️ Network error calling remote cache clear:', err.message);
+            }
+        } else {
+            // Fallback to local redis (existing behavior)
+            // But we know it fails for this user connecting to prod DB from local.
+            console.warn('⚠️ ADMIN_SECRET not set. Skipping remote cache clearance.');
+            console.warn('ℹ️ To clear remote cache, set ADMIN_SECRET in .env');
+
+            // ... existing local redis try/catch block can stay or be removed if we assume this is the main way now.
+            // Let's keep it as fallback but maybe just warn.
+            // Actually, better to remove the direct redis attempt if we are using the API approach to avoid the hang issues entirely
+            // unless the user explicitly wants local redis.
+            // The previous "hang" fix is there, so maybe leave it?
+            // No, let's simplify. If they don't provide secret, we warn.
         }
 
-        // Force exit to ensure we don't hang on open handles
-        setTimeout(() => process.exit(0), 100);
+        process.exit(0);
 
     } catch (error: any) {
         console.error('❌ Import Failed:', error.message);
