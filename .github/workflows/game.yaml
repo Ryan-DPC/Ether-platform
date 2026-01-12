@@ -189,12 +189,12 @@ jobs:
           echo "| **Commit** | ${{ github.sha }} |" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
           echo "### 📥 Downloads" >> $env:GITHUB_STEP_SUMMARY
-          echo "- Game files: \`aether_strike_release_${{ github.sha }}\`" >> $env:GITHUB_STEP_SUMMARY
-          echo "- Archive: \`aether_strike_archive\`" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Game files: ``aether_strike_release_${{ github.sha }}``" >> $env:GITHUB_STEP_SUMMARY
+          echo "- Archive: ``aether_strike_archive``" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
           echo "### 🚀 VEXT Integration" >> $env:GITHUB_STEP_SUMMARY
           echo "Game package is ready for VEXT launcher integration." >> $env:GITHUB_STEP_SUMMARY
-          echo "Metadata file included: \`game_metadata.json\`" >> $env:GITHUB_STEP_SUMMARY
+          echo "Metadata file included: ``game_metadata.json``" >> $env:GITHUB_STEP_SUMMARY
 
   # Job optionnel : Créer une release GitHub si on tag
   create-release:
