@@ -27,37 +27,43 @@ export class GamesService {
             console.warn('[Games] Redis read error:', e.message);
         }
 
-        // 2. Try Fetch from Cloudinary
+        const allGamesMap = new Map<string, any>();
+
+        // 2. Fetch from Cloudinary (if enabled)
         try {
             const cloudinaryService = new CloudinaryService();
             if (cloudinaryService.isEnabled()) {
                 console.log('[Games] Fetching games metadata from Cloudinary...');
-                const games = await cloudinaryService.getAllGames();
-
-                // Save to Redis with 24h TTL
-                try {
-                    await redisService.setWithTTL(cacheKey, JSON.stringify(games));
-                } catch (e) { }
-
-                return games;
-            } else {
-                console.warn('[Games] Cloudinary disabled, returning DB games only.');
+                const cloudGames = await cloudinaryService.getAllGames();
+                cloudGames.forEach((g: any) => allGamesMap.set(g.folder_name, g));
             }
         } catch (cloudError: any) {
-            console.error('[Games] Cloudinary fetch failed (Rate Limit?), falling back to DB:', cloudError.message);
-            // Fallback to DB
+            console.error('[Games] Cloudinary fetch failed (Rate Limit?), proceeding with DB only:', cloudError.message);
         }
 
-        // 3. Fallback to DB
-        const dbGames = await GameModel.find().lean();
-        const formattedGames = dbGames.map((g: any) => ({ id: g._id.toString(), ...g }));
-
-        // Cache DB results with 24h TTL
+        // 3. Fetch from DB
         try {
-            await redisService.setWithTTL(cacheKey, JSON.stringify(formattedGames));
+            console.log('[Games] Fetching games from MongoDB...');
+            const dbGames = await GameModel.find().lean();
+            dbGames.forEach((g: any) => {
+                const formatted = { id: g._id.toString(), ...g };
+                // DB takes precedence or merges? 
+                // If it exists in Cloudinary, we might want to keep Cloudinary assets but override status?
+                // For now, let's have DB override Cloudinary as it's the "source of truth" for new system.
+                allGamesMap.set(g.folder_name, formatted);
+            });
+        } catch (dbError: any) {
+            console.error('[Games] MongoDB fetch failed:', dbError.message);
+        }
+
+        const mergedGames = Array.from(allGamesMap.values());
+
+        // 4. Cache Merged Results
+        try {
+            await redisService.setWithTTL(cacheKey, JSON.stringify(mergedGames));
         } catch (e) { }
 
-        return formattedGames;
+        return mergedGames;
     }
 
     static async getGameDetails(folderName: string, userId: string | null = null) {
