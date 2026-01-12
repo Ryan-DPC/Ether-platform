@@ -3,10 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import { useFriendsStore } from '../stores/friendsStore'
-import { useUserStore } from '../stores/userStore'
 import { useAlertStore } from '../stores/alertStore'
 import { useGroupStore } from '../stores/groupStore'
-import { statsService } from '../services/stats.service'
 import axios from 'axios'
 import InstallPathSelector from '../components/InstallPathSelector.vue'
 import UserAutocomplete from '../components/UserAutocomplete.vue'
@@ -57,6 +55,40 @@ onMounted(async () => {
   await groupStore.fetchMyGroups()
   groupStore.setupWebSocketListeners()
 
+  // Sync local installation status
+  if ((window as any).__TAURI__) {
+      const libraryPathsStr = localStorage.getItem('vextLibraryPaths');
+      let paths: string[] = libraryPathsStr ? JSON.parse(libraryPathsStr) : [];
+      const legacyPath = localStorage.getItem('etherInstallPath');
+      if (legacyPath && !paths.includes(legacyPath)) {
+          paths.push(legacyPath);
+      }
+      
+      // Remove duplicates and nulls
+      paths = [...new Set(paths)].filter(p => !!p);
+
+      if (paths.length > 0 && gameStore.myGames.length > 0) {
+          // Check all games concurrently
+          await Promise.all(gameStore.myGames.map(async (game: any) => {
+              const gameId = game.folder_name || game.slug; 
+              if (!gameId) return;
+
+              for (const path of paths) {
+                  try {
+                      const exists = await tauriAPI.checkGameInstalled(path, gameId);
+                      if (exists) {
+                          game.installed = true;
+                          game.status = 'installed';
+                          break; 
+                      }
+                  } catch (e) {
+                      // ignore error checking specific path
+                  }
+              }
+          }));
+      }
+  }
+
   // Setup Tauri listeners
   // Safe to call, internal check handles it
   tauriAPI.onInstallProgress((data: any) => {
@@ -74,11 +106,13 @@ onMounted(async () => {
 
   tauriAPI.onInstallComplete(async (data: any) => {
       try {
+        /*
         await axios.post('/installation/status', {
           gameId: data.gameId,
           status: 'installed',
           path: data.path
         })
+        */
         
         const game = gameStore.myGames.find((g: any) => (g._id === data.gameId || g.folder_name === data.gameId))
         if (game) {
@@ -88,7 +122,8 @@ onMounted(async () => {
 
         new Notification('Ether Desktop', { body: `✅ ${data.gameName} installed successfully!` })
         installingGameId.value = null
-        await gameStore.fetchMyGames()
+        // Do not fetch from backend here, it would overwrite local 'installed' status
+        // await gameStore.fetchMyGames()
       } catch (error) {
         console.error('Failed to sync installation status:', error)
       }
@@ -119,10 +154,7 @@ const filteredGames = computed(() => {
   return games
 })
 
-const recentlyPlayed = computed(() => {
-  // Mock logic: take first 3 installed games or just first 3
-  return gameStore.myGames.filter((g: any) => g.installed).slice(0, 3)
-})
+
 
 const featuredLibrary = computed(() => {
     // Only show games marked as favorite
@@ -142,6 +174,10 @@ const filteredFriends = computed(() => {
 })
 
 // Actions
+import { useGameLauncher } from '../composables/useGameLauncher';
+
+const { launchGame: launcherLaunch, installGame: launcherInstall } = useGameLauncher();
+
 const handleAddGame = async () => {
   try {
     const response = await axios.post('/game-ownership/redeem-key', {
@@ -184,83 +220,31 @@ const installGame = async (game: any) => {
     cancelText: 'Cancel'
   })) return
 
-  try {
-    if (!(window as any).__TAURI__) {
-      alertStore.showAlert({
-        title: 'Error',
-        message: 'Installation requires App',
-        type: 'error'
-      })
-      return
-    }
+  // Use Composable
+  const result = await launcherInstall(game);
 
-    let installPath = localStorage.getItem('etherInstallPath')
-    if (!installPath) {
-      const selectedPath = await pathSelector.value?.show()
-      installPath = selectedPath || null
-      if (!installPath) return
-      localStorage.setItem('etherInstallPath', installPath)
+  if (result.success && result.gameId) {
+    installingGameId.value = result.gameId
+    installProgress.value = {
+      progress: 0,
+      speed: '0 MB/s',
+      downloaded: '0 MB',
+      total: '...',
+      eta: '...',
+      type: 'download'
     }
-
-    const gameId = game._id || game.folder_name
-    const result = await tauriAPI.installGame(
-      game.zipUrl,
-      installPath,
-      game.folder_name || gameId,
-      gameId,
-      game.game_name,
-      game.version || '1.0.0',
-      {}
-    )
-
-    if (result.success) {
-      installingGameId.value = gameId
-      installProgress.value = {
-        progress: 0,
-        speed: '0 MB/s',
-        downloaded: '0 MB',
-        total: '...',
-        eta: '...',
-        type: 'download'
-      }
-    }
-  } catch (error: any) {
-    alertStore.showAlert({
-      title: 'Installation Error',
-      message: error.message || 'Installation error',
-      type: 'error'
-    })
+  } else if (result.reason === 'no_path') {
+     // Trigger path selector fallback if no default path
+     const selectedPath = await pathSelector.value?.show()
+     if (selectedPath) {
+         // Recursive retry with explicit path
+         await launcherInstall(game, selectedPath);
+     }
   }
 }
 
 const launchGame = async (folderName: string) => {
-  if (!(window as any).__TAURI__) return
-
-  try {
-    const installPath = localStorage.getItem('etherInstallPath')
-    if (!installPath) {
-      alertStore.showAlert({
-        title: 'Configuration Error',
-        message: 'Install path not configured.',
-        type: 'warning'
-      })
-      return
-    }
-
-    const userStore = useUserStore()
-    const token = localStorage.getItem('token')
-    const plainUser = userStore.user ? JSON.parse(JSON.stringify(userStore.user)) : null;
-    
-    const userData = { user: plainUser, token: token }
-    await statsService.startSession(folderName);
-    await tauriAPI.launchGame(installPath, folderName, userData)
-  } catch (error: any) {
-    alertStore.showAlert({
-      title: 'Launch Error',
-      message: `Launch error: ${error.message}`,
-      type: 'error'
-    })
-  }
+  await launcherLaunch(folderName);
 }
 
 // Social Actions
@@ -359,6 +343,8 @@ const handleAddFriendFromGroup = async (username: string) => {
         <div class="scroll-area">
             
             <!-- Recently Played -->
+            <!-- Recently Played Removed based on user feedback -->
+            <!--
             <section v-if="recentlyPlayed.length > 0" class="section">
                 <h3><i class="fas fa-clock"></i> Recently Played</h3>
                 <div class="recent-row">
@@ -377,6 +363,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                     </div>
                 </div>
             </section>
+            -->
 
             <!-- Featured / Favorites -->
             <section v-if="featuredLibrary.length > 0" class="section">

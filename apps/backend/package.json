@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "bun run --watch src/index.ts",
         "start": "bun run src/index.ts",
-        "build": "bun build src/index.ts --outdir dist --target bun --external @aws-sdk/client-s3"
+        "build": "bun build src/index.ts --outdir dist --target bun --external @aws-sdk/client-s3",
+        "test": "bun test",
+        "lint": "eslint ."
     },
     "dependencies": {
         "@elysiajs/cors": "latest",

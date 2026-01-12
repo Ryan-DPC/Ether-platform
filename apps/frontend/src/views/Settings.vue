@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/userStore'
 import { useThemeStore } from '../stores/themeStore' // Import Theme Store
+import tauriAPI from '../tauri-adapter'
 // import { useItemStore } from '../stores/itemStore'   // Import Item Store
 import logoImage from '@/assets/images/Logo.svg'
 import SakuraBackground from '@/components/SakuraBackground.vue'
@@ -15,7 +16,7 @@ const { t, locale } = useI18n()
 
 
 const activeTab = ref('Account')
-const tabs = ['Account', 'Profile', 'Security', 'Notifications', 'Appearance'] // Added Appearance tab
+const tabs = ['Account', 'Profile', 'Security', 'Storage', 'Notifications', 'Appearance'] // Added Storage tab
 
 const form = reactive({
   username: '',
@@ -172,6 +173,68 @@ const addNewPlugin = () => {
         });
     }
 }
+
+// === Storage Logic ===
+const libraryPaths = ref<string[]>([])
+
+onMounted(async () => {
+    // Load paths from localStorage or Tauri
+    const storedPaths = localStorage.getItem('vextLibraryPaths')
+    if (storedPaths) {
+        libraryPaths.value = JSON.parse(storedPaths)
+    } else {
+        // Default
+        if ((window as any).__TAURI__) {
+             try {
+                // We'd ask Tauri for default doc path but for now hardcode/mock
+                // Actually tauri-adapter might have a get install path
+                const defaultPath = localStorage.getItem('etherInstallPath') || 'C:\\Users\\Default\\Documents\\Vext-platform\\Vext'
+                libraryPaths.value = [defaultPath]
+             } catch (e) {
+                libraryPaths.value = ['Documents/Vext-platform/Vext']
+             }
+        } else {
+             libraryPaths.value = ['/home/vext/games'] // Web mock
+        }
+    }
+})
+
+const addLibraryPath = async () => {
+   if ((window as any).__TAURI__) {
+       try {
+           // Use our adapter which invokes the backend command 'select_folder'
+           const selected = await tauriAPI.selectFolder();
+           
+           if (selected && typeof selected === 'string') {
+               // Verify it doesn't exist
+               if (!libraryPaths.value.includes(selected)) {
+                   libraryPaths.value.push(selected);
+                   saveLibraryPaths();
+                   statusMessage.value = 'Library folder added!';
+                   statusType.value = 'success';
+               }
+           }
+       } catch (e) {
+           console.error('Failed to open dialog:', e);
+       }
+   } else {
+       // Web fallback
+       const path = prompt("Enter absolute path for new library folder:");
+       if (path && !libraryPaths.value.includes(path)) {
+           libraryPaths.value.push(path);
+           saveLibraryPaths();
+       }
+   }
+}
+
+const removeLibraryPath = (index: number) => {
+    libraryPaths.value.splice(index, 1);
+    saveLibraryPaths();
+}
+
+const saveLibraryPaths = () => {
+    localStorage.setItem('vextLibraryPaths', JSON.stringify(libraryPaths.value));
+}
 </script>
 
 <template>
@@ -281,6 +344,27 @@ const addNewPlugin = () => {
                 </div>
             </div>
             <button class="save-btn" @click="changePassword">{{ t('settings.security.update_btn') }}</button>
+        </div>
+
+        <!-- STORAGE TAB -->
+        <div v-if="activeTab === 'Storage'" class="tab-content">
+            <div class="section-label">{{ t('settings.storage.library_folders') }}</div>
+            <div class="storage-list">
+                 <div v-for="(path, index) in libraryPaths" :key="index" class="storage-item">
+                    <div class="storage-info">
+                        <i class="fas fa-folder storage-icon"></i>
+                        <span class="storage-path">{{ path }}</span>
+                        <span v-if="index === 0" class="default-badge">DEFAULT</span>
+                    </div>
+                    <button v-if="index !== 0" class="remove-btn" @click="removeLibraryPath(index)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                 </div>
+            </div>
+            
+            <button class="add-library-btn" @click="addLibraryPath">
+                <i class="fas fa-plus"></i> {{ t('settings.storage.add_folder') }}
+            </button>
         </div>
 
 

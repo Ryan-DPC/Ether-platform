@@ -1,15 +1,15 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 export const useLayoutStore = defineStore('layout', () => {
-    const appBackground = ref<string | null>(null)
+  const appBackground = ref<string | null>(null);
 
-    function setBackground(url: string | null) {
-        appBackground.value = url
-    }
+  function setBackground(url: string | null) {
+    appBackground.value = url;
+  }
 
-    return {
-        appBackground,
-        setBackground
-    }
-})
+  return {
+    appBackground,
+    setBackground,
+  };
+});

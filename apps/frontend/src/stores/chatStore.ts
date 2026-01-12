@@ -1,20 +1,20 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 export const useChatStore = defineStore('chat', () => {
-    const activeChatFriend = ref<any>(null)
+  const activeChatFriend = ref<any>(null);
 
-    const openChat = (friend: any) => {
-        activeChatFriend.value = friend
-    }
+  const openChat = (friend: any) => {
+    activeChatFriend.value = friend;
+  };
 
-    const closeChat = () => {
-        activeChatFriend.value = null
-    }
+  const closeChat = () => {
+    activeChatFriend.value = null;
+  };
 
-    return {
-        activeChatFriend,
-        openChat,
-        closeChat
-    }
-})
+  return {
+    activeChatFriend,
+    openChat,
+    closeChat,
+  };
+});

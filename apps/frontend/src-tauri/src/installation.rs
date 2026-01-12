@@ -8,7 +8,11 @@ use std::cmp::min;
 use std::io::Write;
 use tauri::{Window, Emitter};
 
+
+
+
 #[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ProgressPayload {
     game_id: String,
     game_name: String,
@@ -26,7 +30,7 @@ pub async fn install_game(
     game_name: String,
 ) -> Result<String, String> {
     let client = Client::new();
-    let game_dir = Path::new(&install_path).join("Ether").join(&folder_name);
+    let game_dir = Path::new(&install_path).join("Vext").join(&folder_name);
     
     // Create directory
     fs::create_dir_all(&game_dir).map_err(|e| e.to_string())?;
@@ -116,17 +120,41 @@ pub async fn install_game(
 
     // 3. Verify or Create Manifest
     let manifest_path = game_dir.join("manifest.json");
+    
+    // Always check for executable name if we are creating a manifest
+    let mut entry_point = "Game.exe".to_string();
+    
+    // Try to find the actual executable in the folder
+    if let Ok(entries) = fs::read_dir(&game_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext.to_string_lossy().to_lowercase() == "exe" {
+                        if let Some(name) = path.file_name() {
+                            entry_point = name.to_string_lossy().to_string();
+                            // Prefer the one matching game_id or folder_name if possible, but taking first one is safer than "Game.exe"
+                            if entry_point.contains(&folder_name) || entry_point.contains(&game_id) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if !manifest_path.exists() {
-        // Create a basic manifest if missing (common for single exe games)
+        // Create a basic manifest if missing
         let manifest_content = format!(
             r#"{{
                 "id": "{}",
                 "name": "{}",
                 "version": "1.0.0",
-                "executable": "Game.exe",
-                "entryPoint": "Game.exe"
+                "executable": "{}",
+                "entryPoint": "{}"
             }}"#,
-            game_id, game_name
+            game_id, game_name, entry_point, entry_point
         );
         let mut m_file = fs::File::create(&manifest_path).map_err(|e| e.to_string())?;
         m_file.write_all(manifest_content.as_bytes()).map_err(|e| e.to_string())?;
@@ -150,7 +178,7 @@ pub async fn select_folder() -> Option<String> {
 
 #[tauri::command]
 pub fn uninstall_game(install_path: String, folder_name: String) -> Result<bool, String> {
-    let game_dir = Path::new(&install_path).join("Ether").join(folder_name);
+    let game_dir = Path::new(&install_path).join("Vext").join(folder_name);
     if game_dir.exists() {
         fs::remove_dir_all(game_dir).map_err(|e| e.to_string())?;
         Ok(true)
@@ -162,7 +190,7 @@ pub fn uninstall_game(install_path: String, folder_name: String) -> Result<bool,
 #[tauri::command]
 pub fn is_game_installed(install_path: String, folder_name: String) -> bool {
     let manifest_path = Path::new(&install_path)
-        .join("Ether")
+        .join("Vext")
         .join(folder_name)
         .join("manifest.json");
     manifest_path.exists()

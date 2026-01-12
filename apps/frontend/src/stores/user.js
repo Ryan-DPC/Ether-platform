@@ -1,1 +1,1 @@
-export { useUserStore } from './userStore.ts'
+export { useUserStore } from './userStore.ts';

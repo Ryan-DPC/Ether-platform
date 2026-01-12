@@ -22,6 +22,7 @@ import { statsRoutes } from './features/stats/stats.routes';
 import { devGamesRoutes } from './features/dev-games/dev-games.routes';
 import { adminRoutes } from './features/admin/admin.routes';
 import { groupsRoutes } from './features/groups/groups.routes';
+import { installationRoutes } from './features/installation/installation.routes';
 import { setWebSocketServer } from './services/websocket.service';
 import { logger } from './utils/logger';
 
@@ -34,65 +35,70 @@ import './jobs/redis-cleanup.job';
 import { staticPlugin } from '@elysiajs/static';
 
 const app = new Elysia()
-    .use(staticPlugin({
-        assets: 'public',
-        prefix: '/public'
-    }))
-    .use(cors())
-    .use(swagger())
-    .onRequest(({ request, store }) => {
-        (store as any).startTime = performance.now();
+  .use(
+    staticPlugin({
+      assets: 'public',
+      prefix: '/public',
     })
-    .onAfterHandle(({ request, set, store }) => {
-        const start = (store as any).startTime;
-        if (start) {
-            const duration = performance.now() - start;
-            const method = request.method;
-            const url = new URL(request.url).pathname;
-            const status = set.status || 200;
+  )
+  .use(cors())
+  .use(swagger())
+  .onRequest(({ request, store }) => {
+    (store as any).startTime = performance.now();
+  })
+  .onAfterHandle(({ request, set, store }) => {
+    const start = (store as any).startTime;
+    if (start) {
+      const duration = performance.now() - start;
+      const method = request.method;
+      const url = new URL(request.url).pathname;
+      const status = set.status || 200;
 
-            const logMsg = `[${method}] ${url} - ${status} - ${duration.toFixed(2)}ms`;
+      const logMsg = `[${method}] ${url} - ${status} - ${duration.toFixed(2)}ms`;
 
-            if (duration > 200) {
-                logger.warn(`Slow Request: ${logMsg}`);
-            } else {
-                logger.http(logMsg);
-            }
-        }
-    })
-    .get('/', () => ({
-        success: true,
-        message: 'VEXT Backend (Elysia + Native WS) is running',
-        version: '1.0.0'
-    }))
-    .get('/health', () => ({
-        status: 'ok',
-        uptime: process.uptime()
-    }))
-    // HTTP Routes
-    .use(authRoutes)
-    .use(usersRoutes)
-    .use(gamesRoutes)
-    .use(friendsRoutes)
-    .use(libraryRoutes)
-    .use(stickArenaRoutes)
-    .use(chatRoutes)
-    .use(itemsRoutes)
-    .use(financeRoutes)
-    .use(lobbyRoutes)
-    .use(gameCategoriesRoutes)
-    .use(gameOwnershipRoutes)
-    .use(reviewsRoutes)
-    .use(statsRoutes)
-    .use(devGamesRoutes)
-    .use(adminRoutes)
-    .use(groupsRoutes)
-    .listen(process.env.PORT || 3000);
+      if (duration > 200) {
+        logger.warn(`Slow Request: ${logMsg}`);
+      } else {
+        logger.http(logMsg);
+      }
+    }
+  })
+  .get('/', () => ({
+    success: true,
+    message: 'VEXT Backend (Elysia + Native WS) is running',
+    version: '1.0.0',
+  }))
+  .get('/health', () => ({
+    status: 'ok',
+    uptime: process.uptime(),
+  }))
+  // HTTP Routes
+  .use(authRoutes)
+  .use(usersRoutes)
+  .use(gamesRoutes)
+  .use(friendsRoutes)
+  .use(libraryRoutes)
+  .use(stickArenaRoutes)
+  .use(chatRoutes)
+  .use(itemsRoutes)
+  .use(financeRoutes)
+  .use(lobbyRoutes)
+  .use(gameCategoriesRoutes)
+  .use(gameOwnershipRoutes)
+  .use(reviewsRoutes)
+  .use(statsRoutes)
+  .use(devGamesRoutes)
+  .use(adminRoutes)
+  .use(groupsRoutes)
+  .use(installationRoutes)
+  .listen(process.env.PORT || 3000);
 
 // Initialize Global WebSocket Server Reference
 if (app.server) {
-    setWebSocketServer(app.server);
-    logger.info(`🦊 VEXT Backend (REST) is running at ${app.server.hostname}:${app.server.port} (with Native WebSockets)`);
+  setWebSocketServer(app.server);
+  logger.info(
+    `🦊 VEXT Backend (REST) is running at ${app.server.hostname}:${app.server.port} (with Native WebSockets)`
+  );
 } else {
-    logger.error('Failed to start Elysia server');
+  logger.error('Failed to start Elysia server');
 }

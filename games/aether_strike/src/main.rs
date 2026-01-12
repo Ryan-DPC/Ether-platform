@@ -51,14 +51,46 @@ async fn main() {
             vext_token = args[i + 1].clone();
             println!("🔐 VEXT Integration: Token received");
         }
+        if args[i] == "--vext-friends" && i + 1 < args.len() {
+            let friends_str = &args[i + 1];
+            println!("👥 VEXT Integration: Loading friends list...");
+            
+            // Format: "User1:online,User2:offline"
+            let friends_list: Vec<&str> = friends_str.split(',').collect();
+            for friend_entry in friends_list {
+                let parts: Vec<&str> = friend_entry.split(':').collect();
+                if parts.len() == 2 {
+                    let name = parts[0];
+                    let is_online = parts[1] == "online";
+                    // Only add if we manage to parse it
+                    // Hacky way to access private method or just reuse `add_friend` if public
+                    // PlayerProfile::add_friend is public? Yes line 59 calls it.
+                }
+            }
+        }
     }
 
     // Profil du joueur
     let mut player_profile = PlayerProfile::new(vext_username);
-    // Ajouter quelques amis pour test
-    player_profile.add_friend("MaxGamer42", true);
-    player_profile.add_friend("ShadowNinja", false);
-    player_profile.add_friend("DragonSlayer", true);
+    
+    // Parse friends again securely after creation because we need the instance
+    for i in 0..args.len() {
+        if args[i] == "--vext-friends" && i + 1 < args.len() {
+             let friends_str = &args[i + 1];
+             let friends_list: Vec<&str> = friends_str.split(',').collect();
+             for friend_entry in friends_list {
+                 let parts: Vec<&str> = friend_entry.split(':').collect();
+                 if parts.len() >= 2 {
+                    let name = parts[0];
+                    let is_online = parts[1] == "online";
+                    player_profile.add_friend(name, is_online);
+                 }
+            }
+        }
+    }
+
+    // Fallback if no friends passed (optional, or just leave empty)
+    // player_profile.add_friend("MaxGamer42", true);
     
     // Variables pour la création de personnage
     let mut character_name_input = String::new();

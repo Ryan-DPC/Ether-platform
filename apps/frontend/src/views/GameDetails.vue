@@ -5,13 +5,14 @@ import axios from 'axios'
 // import defaultGameImg from '@/assets/images/default-game.svg'
 import { getApiUrl } from '../utils/url';
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
-import { statsService } from '../services/stats.service';
 import { useUserStore } from '@/stores/userStore';
 import { useAlertStore } from '@/stores/alertStore';
+import { useGameLauncher } from '../composables/useGameLauncher';
+import InstallPathSelector from '../components/InstallPathSelector.vue';
+import tauriAPI from '../tauri-adapter';
 
 const userStore = useUserStore();
 const alertStore = useAlertStore();
-import tauriAPI from '../tauri-adapter';
 const route = useRoute()
 const gameId = route.params.id as string
 const game = ref<any>(null)
@@ -25,6 +26,7 @@ const isInstalled = ref(false)
 const hasUpdate = ref(false)
 const installingGameId = ref<string | null>(null)
 const isInstalling = ref(false)
+const pathSelector = ref<InstanceType<typeof InstallPathSelector> | null>(null)
 const installProgress = ref({
   progress: 0,
   speed: '',
@@ -40,6 +42,203 @@ const reviews = ref<any[]>([])
 const reviewForm = ref({ rating: 5, content: '' })
 const isSubmittingReview = ref(false)
 const reviewError = ref('')
+
+
+
+const { launchGame: launcherLaunch, installGame: launcherInstall, uninstallGame: launcherUninstall } = useGameLauncher();
+
+const checkInstallationStatus = async () => {
+    // We can rely on composable or keep local check. GameDetails typically needs to poll or check once.
+    // The previous implementation used checkGameInstalled from adapter. Let's keep it simple for now or move to composable if we added check there?
+    // We didn't add checkGameInstalled to composable public interface yet, only launch/install.
+    // Let's keep local check for existence, but used shared install logic.
+    const installPath = localStorage.getItem('etherInstallPath')
+    if (!installPath || !game.value) return
+
+    const isFolderExists = await tauriAPI.checkGameInstalled(installPath, game.value.slug)
+    if (isFolderExists) {
+        isInstalled.value = true
+    }
+}
+
+const setupInstallListeners = () => {
+    tauriAPI.onInstallProgress((data: any) => {
+        if (data.gameId === game.value.slug) {
+            installingGameId.value = data.gameId
+            isInstalling.value = true
+            installProgress.value = {
+                progress: data.progress,
+                speed: data.speed || '',
+                downloaded: data.downloaded || '',
+                total: data.total || '',
+                eta: data.eta || '',
+                type: data.type || 'download'
+            }
+        }
+    })
+
+    tauriAPI.onInstallComplete((data: any) => {
+        if (data.gameId === game.value.slug) {
+            isInstalling.value = false
+            installingGameId.value = null
+            isInstalled.value = true
+            hasUpdate.value = false
+            
+            new Notification('Ether Desktop', {
+                body: `✅ ${data.gameName} installé avec succès!`,
+                silent: false
+            })
+        }
+    })
+
+    tauriAPI.onInstallError((data: any) => {
+        if (data.gameId === game.value.slug) {
+            isInstalling.value = false
+            installingGameId.value = null
+            installingGameId.value = null
+            alertStore.showAlert({
+                title: 'Erreur d\'installation',
+                message: data.error,
+                type: 'error'
+            })
+        }
+    })
+}
+
+const installGame = async () => {
+    const result = await launcherInstall(game.value);
+
+    // If result requires selection (not implemented fully in UI here, we rely on composable handling path selection if it could)
+    // Actually composable returns 'no_path' if it failed to find a path and expects UI to handle it.
+    // GameDetails has its own pathSelector ref.
+    if (result.reason === 'no_path') {
+         if (pathSelector.value) {
+            const selected = await pathSelector.value.show();
+            if (selected) {
+                 await launcherInstall(game.value, selected);
+            }
+         } else {
+             alertStore.showAlert({
+                title: 'Configuration requise',
+                message: 'Veuillez définir un dossier d\'installation.',
+                type: 'info'
+            })
+         }
+    }
+    
+    // We rely on listeners to update state 'isInstalling'
+}
+
+const launchGame = async () => {
+    await launcherLaunch(game.value.slug);
+}
+
+const purchaseGame = async () => {
+    if (!game.value) return
+    
+    isPurchasing.value = true
+    try {
+        const response = await axios.post('/library/purchase-game', {
+            gameId: game.value.slug,
+            price: game.value.price
+        })
+        
+        if (response.data.success) {
+            alertStore.showAlert({
+                title: 'Achat réussi !',
+                message: `Jeu acheté avec succès ! Solde restant : ${response.data.remainingBalance} CHF`,
+                type: 'success'
+            })
+            userOwnsGame.value = true
+            // Refresh user tokens immediately
+            await userStore.fetchProfile()
+        }
+    } catch (err: any) {
+        alertStore.showAlert({
+            title: 'Erreur d\'achat',
+            message: err.response?.data?.message || 'Erreur lors de l\'achat',
+            type: 'error'
+        })
+    } finally {
+        isPurchasing.value = false
+    }
+}
+
+const uninstallGame = async () => {
+    const success = await launcherUninstall(game.value);
+    if (success) {
+        isInstalled.value = false
+    }
+}
+
+// Wishlist Logic
+const checkWishlistStatus = async () => {
+    try {
+        const response = await axios.get('/users/wishlist')
+        const wishlist = response.data.wishlist || []
+        // Check if current game ID or folder name is in wishlist
+        // Wishlist usually returns array of Game Objects if populated, or IDs.
+        // My backend populate('wishlist'), so it returns objects.
+        isInWishlist.value = wishlist.some((g: any) => g._id === game.value._id || g.id === game.value._id)
+    } catch (e) {
+        console.error('Error checking wishlist:', e)
+    }
+}
+
+const toggleWishlist = async () => {
+    try {
+        const id = game.value._id || game.value.slug
+        if (isInWishlist.value) {
+            await axios.delete(`/users/wishlist/${id}`)
+            isInWishlist.value = false
+             alertStore.showAlert({ title: 'Wishlist', message: 'Retiré de la liste de souhaits', type: 'info' })
+        } else {
+            await axios.post('/users/wishlist', { gameId: id })
+            isInWishlist.value = true
+            alertStore.showAlert({ title: 'Wishlist', message: 'Ajouté à la liste de souhaits !', type: 'success' })
+        }
+    } catch (e: any) {
+         alertStore.showAlert({ title: 'Erreur', message: e.response?.data?.message || 'Erreur wishlist', type: 'error' })
+    }
+}
+
+// Reviews Logic
+const fetchReviews = async () => {
+    try {
+        // We need the ID. game.value._id or game.value.folder_name?
+        // Route is :gameId/reviews. Backend usually expects ObjectId but let's check.
+        // We updated games routes to be strict? No, usually ID or slug if handled.
+        // Controller uses :gameId directly.
+        // Let's safe bet use _id if available, else slug.
+        const id = game.value._id || game.value.slug
+        const response = await axios.get(`/games/${id}/reviews`)
+        reviews.value = response.data
+    } catch (e) {
+        console.error('Error fetching reviews:', e)
+    }
+}
+
+const submitReview = async () => {
+    if (!reviewForm.value.content) return
+    isSubmittingReview.value = true
+    reviewError.value = ''
+    try {
+        const id = game.value._id || game.value.slug
+        await axios.post(`/games/${id}/reviews`, {
+            rating: reviewForm.value.rating,
+            content: reviewForm.value.content
+        })
+        
+        // Refresh
+        await fetchReviews()
+        reviewForm.value = { rating: 5, content: '' } // Reset
+        alertStore.showAlert({ title: 'Merci !', message: 'Votre avis a été publié.', type: 'success' })
+    } catch (e: any) {
+        reviewError.value = e.response?.data?.message || 'Erreur lors de la publication'
+    } finally {
+        isSubmittingReview.value = false
+    }
+}
 
 onMounted(async () => {
     try {
@@ -120,276 +319,6 @@ onMounted(async () => {
         isLoading.value = false
     }
 })
-
-const checkInstallationStatus = async () => {
-    const installPath = localStorage.getItem('etherInstallPath')
-    if (!installPath || !game.value) return
-
-    // Check if folder exists
-    const isFolderExists = await tauriAPI.checkGameInstalled(installPath, game.value.slug)
-    
-    if (isFolderExists) {
-        // TODO: Read installed.json to check version
-        // For now, assume installed if folder exists
-        isInstalled.value = true
-        
-        // If we could read installed.json, we would compare versions here
-        // hasUpdate.value = installedVersion.value !== game.value.version
-    }
-}
-
-const setupInstallListeners = () => {
-    tauriAPI.onInstallProgress((data: any) => {
-        if (data.gameId === game.value.slug) {
-            installingGameId.value = data.gameId
-            isInstalling.value = true
-            installProgress.value = {
-                progress: data.progress,
-                speed: data.speed || '',
-                downloaded: data.downloaded || '',
-                total: data.total || '',
-                eta: data.eta || '',
-                type: data.type || 'download'
-            }
-        }
-    })
-
-    tauriAPI.onInstallComplete((data: any) => {
-        if (data.gameId === game.value.slug) {
-            isInstalling.value = false
-            installingGameId.value = null
-            isInstalled.value = true
-            hasUpdate.value = false
-            
-            new Notification('Ether Desktop', {
-                body: `✅ ${data.gameName} installé avec succès!`,
-                silent: false
-            })
-        }
-    })
-
-    tauriAPI.onInstallError((data: any) => {
-        if (data.gameId === game.value.slug) {
-            isInstalling.value = false
-            installingGameId.value = null
-            installingGameId.value = null
-            alertStore.showAlert({
-                title: 'Erreur d\'installation',
-                message: data.error,
-                type: 'error'
-            })
-        }
-    })
-}
-
-const installGame = async () => {
-    if (!(window as any).__TAURI__) {
-        alertStore.showAlert({
-            title: 'Application requise',
-            message: 'L\'installation nécessite l\'application desktop',
-            type: 'warning'
-        })
-        return
-    }
-
-    try {
-        // 1. Get Install Path
-        let installPath = localStorage.getItem('etherInstallPath')
-        if (!installPath) {
-            // Show path selector (we need to add the component to template)
-            // For now, alert if not set
-            alertStore.showAlert({
-                title: 'Configuration requise',
-                message: 'Veuillez d\'abord définir un dossier d\'installation dans la bibliothèque',
-                type: 'info'
-            })
-            return
-        }
-
-        isInstalling.value = true
-
-        // 2. Fetch Manifest
-        console.log('Fetching manifest for game:', game.value.slug)
-        const manifestResponse = await axios.get(`/games/${game.value.slug}/manifest`)
-        const manifest = manifestResponse.data
-
-        // Support both downloadUrl and zipUrl
-        const downloadUrl = manifest.downloadUrl || manifest.zipUrl
-        const version = manifest.version
-
-        if (!downloadUrl) {
-            throw new Error('Download URL not found in manifest')
-        }
-
-        // 4. Start Installation via Tauri
-        await tauriAPI.installGame(
-            downloadUrl,
-            installPath,
-            game.value.slug, // folder name
-            game.value.slug, // game id
-            game.value.gameName,
-            version,
-            manifest // Pass manifest as required by new signature
-        )
-
-    } catch (err: any) {
-        console.error('Installation failed:', err)
-        isInstalling.value = false
-        alertStore.showAlert({
-            title: 'Erreur',
-            message: err.message || 'Erreur lors de l\'initialisation de l\'installation',
-            type: 'error'
-        })
-    }
-}
-
-const launchGame = async () => {
-    if (!(window as any).__TAURI__) return
-    
-    const installPath = localStorage.getItem('etherInstallPath')
-    if (!installPath) return
-
-    try {
-        await statsService.startSession(game.value.slug);
-        await tauriAPI.launchGame(installPath, game.value.slug, {})
-    } catch (err: any) {
-        alertStore.showAlert({
-            title: 'Erreur de lancement',
-            message: err.message,
-            type: 'error'
-        })
-    }
-}
-
-const purchaseGame = async () => {
-    if (!game.value) return
-    
-    isPurchasing.value = true
-    try {
-        const response = await axios.post('/library/purchase-game', {
-            gameId: game.value.slug,
-            price: game.value.price
-        })
-        
-        if (response.data.success) {
-            alertStore.showAlert({
-                title: 'Achat réussi !',
-                message: `Jeu acheté avec succès ! Solde restant : ${response.data.remainingBalance} CHF`,
-                type: 'success'
-            })
-            userOwnsGame.value = true
-            // Refresh user tokens immediately
-            await userStore.fetchProfile()
-        }
-    } catch (err: any) {
-        alertStore.showAlert({
-            title: 'Erreur d\'achat',
-            message: err.response?.data?.message || 'Erreur lors de l\'achat',
-            type: 'error'
-        })
-    } finally {
-        isPurchasing.value = false
-    }
-}
-
-const uninstallGame = async () => {
-    if (!(window as any).__TAURI__ || !game.value) return
-    const installPath = localStorage.getItem('etherInstallPath')
-    if (!installPath) return
-
-    if (await alertStore.showConfirm({
-        title: 'Désinstallation',
-        message: 'Voulez-vous vraiment désinstaller ce jeu ?',
-        type: 'warning',
-        confirmText: 'Désinstaller',
-        cancelText: 'Annuler'
-    })) {
-        try {
-            await tauriAPI.uninstallGame(installPath, game.value.slug)
-            isInstalled.value = false
-            alertStore.showAlert({
-                title: 'Succès',
-                message: 'Jeu désinstallé',
-                type: 'success'
-            })
-        } catch (e: any) {
-            alertStore.showAlert({
-                title: 'Erreur',
-                message: 'Erreur: ' + e,
-                type: 'error'
-            })
-        }
-    }
-}
-
-// Wishlist Logic
-const checkWishlistStatus = async () => {
-    try {
-        const response = await axios.get('/users/wishlist')
-        const wishlist = response.data.wishlist || []
-        // Check if current game ID or folder name is in wishlist
-        // Wishlist usually returns array of Game Objects if populated, or IDs.
-        // My backend populate('wishlist'), so it returns objects.
-        isInWishlist.value = wishlist.some((g: any) => g._id === game.value._id || g.id === game.value._id)
-    } catch (e) {
-        console.error('Error checking wishlist:', e)
-    }
-}
-
-const toggleWishlist = async () => {
-    try {
-        const id = game.value._id || game.value.slug
-        if (isInWishlist.value) {
-            await axios.delete(`/users/wishlist/${id}`)
-            isInWishlist.value = false
-             alertStore.showAlert({ title: 'Wishlist', message: 'Retiré de la liste de souhaits', type: 'info' })
-        } else {
-            await axios.post('/users/wishlist', { gameId: id })
-            isInWishlist.value = true
-            alertStore.showAlert({ title: 'Wishlist', message: 'Ajouté à la liste de souhaits !', type: 'success' })
-        }
-    } catch (e: any) {
-         alertStore.showAlert({ title: 'Erreur', message: e.response?.data?.message || 'Erreur wishlist', type: 'error' })
-    }
-}
-
-// Reviews Logic
-const fetchReviews = async () => {
-    try {
-        // We need the ID. game.value._id or game.value.folder_name?
-        // Route is :gameId/reviews. Backend usually expects ObjectId but let's check.
-        // We updated games routes to be strict? No, usually ID or slug if handled.
-        // Controller uses :gameId directly.
-        // Let's safe bet use _id if available, else slug.
-        const id = game.value._id || game.value.slug
-        const response = await axios.get(`/games/${id}/reviews`)
-        reviews.value = response.data
-    } catch (e) {
-        console.error('Error fetching reviews:', e)
-    }
-}
-
-const submitReview = async () => {
-    if (!reviewForm.value.content) return
-    isSubmittingReview.value = true
-    reviewError.value = ''
-    try {
-        const id = game.value._id || game.value.slug
-        await axios.post(`/games/${id}/reviews`, {
-            rating: reviewForm.value.rating,
-            content: reviewForm.value.content
-        })
-        
-        // Refresh
-        await fetchReviews()
-        reviewForm.value = { rating: 5, content: '' } // Reset
-        alertStore.showAlert({ title: 'Merci !', message: 'Votre avis a été publié.', type: 'success' })
-    } catch (e: any) {
-        reviewError.value = e.response?.data?.message || 'Erreur lors de la publication'
-    } finally {
-        isSubmittingReview.value = false
-    }
-}
 </script>
 
 <template>
@@ -602,6 +531,7 @@ const submitReview = async () => {
             </div>
         </div>
     </div>
+    <InstallPathSelector ref="pathSelector" />
 </template>
 
 <style scoped>

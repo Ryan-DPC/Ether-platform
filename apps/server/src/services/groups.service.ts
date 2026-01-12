@@ -4,246 +4,254 @@ import User from '../models/user.model'; // Ensure User model is registered
 import mongoose from 'mongoose';
 
 export interface IGroup {
-    id: string;
-    name: string;
-    description?: string;
-    owner_id: string;
-    members: string[];
-    icon_url?: string;
-    created_at: Date;
-    updated_at: Date;
+  id: string;
+  name: string;
+  description?: string;
+  owner_id: string;
+  members: string[];
+  icon_url?: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface IGroupMessage {
-    id: string;
-    group_id: string;
-    user_id: string;
-    content: string;
-    created_at: Date;
+  id: string;
+  group_id: string;
+  user_id: string;
+  content: string;
+  created_at: Date;
 }
 
 export class GroupsService {
-    /**
-     * Create a new group
-     */
-    static async createGroup(userId: string, name: string, description?: string, iconUrl?: string): Promise<any> {
-        const group = await GroupModel.create({
-            name,
-            description,
-            owner_id: userId,
-            members: [userId], // Owner is automatically a member
-            icon_url: iconUrl
-        });
+  /**
+   * Create a new group
+   */
+  static async createGroup(
+    userId: string,
+    name: string,
+    description?: string,
+    iconUrl?: string
+  ): Promise<any> {
+    const group = await GroupModel.create({
+      name,
+      description,
+      owner_id: userId,
+      members: [userId], // Owner is automatically a member
+      icon_url: iconUrl,
+    });
 
-        return group;
+    return group;
+  }
+
+  /**
+   * Get all groups where user is a member
+   */
+  static async getMyGroups(userId: string): Promise<any[]> {
+    const groups = await GroupModel.find({
+      members: userId,
+    })
+      .populate('members', 'username profile_pic socket_id')
+      .sort({ updated_at: -1 })
+      .lean();
+
+    // Debug logging for populate check
+    console.log('[GroupsService.getMyGroups] Fetched groups count:', groups.length);
+    if (groups.length > 0) {
+      console.log(
+        '[GroupsService.getMyGroups] First group members sample:',
+        JSON.stringify(groups[0].members[0] || 'empty')
+      );
     }
 
-    /**
-     * Get all groups where user is a member
-     */
-    static async getMyGroups(userId: string): Promise<any[]> {
-        const groups = await GroupModel.find({
-            members: userId
-        })
-            .populate('members', 'username profile_pic socket_id')
-            .sort({ updated_at: -1 })
-            .lean();
+    return groups.map((group) => ({
+      id: group._id.toString(),
+      name: group.name,
+      description: group.description,
+      owner_id: group.owner_id.toString(),
+      members: (group.members as any[]).map((m) => ({
+        id: m._id ? m._id.toString() : 'unknown', // Handle cases where m is missing or not populated
+        username: m.username || 'Unknown',
+        profile_pic: m.profile_pic,
+        is_online: !!m.socket_id,
+      })),
+      icon_url: group.icon_url,
+      created_at: group.created_at,
+      updated_at: group.updated_at,
+    }));
+  }
 
-        // Debug logging for populate check
-        console.log('[GroupsService.getMyGroups] Fetched groups count:', groups.length);
-        if (groups.length > 0) {
-            console.log('[GroupsService.getMyGroups] First group members sample:', JSON.stringify(groups[0].members[0] || 'empty'));
-        }
+  /**
+   * Get group details
+   */
+  static async getGroup(groupId: string, userId: string): Promise<any> {
+    const group = await GroupModel.findById(groupId)
+      .populate('members', 'username profile_pic socket_id')
+      .lean();
 
-        return groups.map(group => ({
-            id: group._id.toString(),
-            name: group.name,
-            description: group.description,
-            owner_id: group.owner_id.toString(),
-            members: (group.members as any[]).map(m => ({
-                id: m._id ? m._id.toString() : 'unknown', // Handle cases where m is missing or not populated
-                username: m.username || 'Unknown',
-                profile_pic: m.profile_pic,
-                is_online: !!m.socket_id
-            })),
-            icon_url: group.icon_url,
-            created_at: group.created_at,
-            updated_at: group.updated_at
-        }));
+    if (!group) {
+      throw new Error('Group not found');
     }
 
-    /**
-     * Get group details
-     */
-    static async getGroup(groupId: string, userId: string): Promise<any> {
-        const group = await GroupModel.findById(groupId)
-            .populate('members', 'username profile_pic socket_id')
-            .lean();
-
-        if (!group) {
-            throw new Error('Group not found');
-        }
-
-        // Verify user is a member
-        const isMember = (group.members as any[]).some(m => m._id.toString() === userId);
-        if (!isMember) {
-            throw new Error('You are not a member of this group');
-        }
-
-        return {
-            id: group._id.toString(),
-            name: group.name,
-            description: group.description,
-            owner_id: group.owner_id.toString(),
-            members: (group.members as any[]).map(m => ({
-                id: m._id.toString(),
-                username: m.username,
-                profile_pic: m.profile_pic,
-                is_online: !!m.socket_id // approximate online status via socket_id presence
-            })),
-            icon_url: group.icon_url,
-            created_at: group.created_at,
-            updated_at: group.updated_at
-        };
+    // Verify user is a member
+    const isMember = (group.members as any[]).some((m) => m._id.toString() === userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this group');
     }
 
-    /**
-     * Invite a member to the group
-     * Requirement: invitee must be friends with at least one existing member
-     */
-    static async inviteMember(groupId: string, inviterId: string, inviteeId: string): Promise<any> {
-        const group = await GroupModel.findById(groupId);
+    return {
+      id: group._id.toString(),
+      name: group.name,
+      description: group.description,
+      owner_id: group.owner_id.toString(),
+      members: (group.members as any[]).map((m) => ({
+        id: m._id.toString(),
+        username: m.username,
+        profile_pic: m.profile_pic,
+        is_online: !!m.socket_id, // approximate online status via socket_id presence
+      })),
+      icon_url: group.icon_url,
+      created_at: group.created_at,
+      updated_at: group.updated_at,
+    };
+  }
 
-        if (!group) {
-            throw new Error('Group not found');
-        }
+  /**
+   * Invite a member to the group
+   * Requirement: invitee must be friends with at least one existing member
+   */
+  static async inviteMember(groupId: string, inviterId: string, inviteeId: string): Promise<any> {
+    const group = await GroupModel.findById(groupId);
 
-        // Verify inviter is a member
-        const isInviterMember = group.members.some(m => m.toString() === inviterId);
-        if (!isInviterMember) {
-            throw new Error('You are not a member of this group');
-        }
-
-        // Check if user is already a member
-        const isAlreadyMember = group.members.some(m => m.toString() === inviteeId);
-        if (isAlreadyMember) {
-            throw new Error('User is already a member');
-        }
-
-        // Verify invitee is friends with at least one member
-        const invitee = await User.findById(inviteeId);
-        if (!invitee) {
-            throw new Error('User not found');
-        }
-
-        const inviteeFriends = invitee.friends.map((f: any) => f.toString());
-        const hasCommonFriend = group.members.some(memberId =>
-            inviteeFriends.includes(memberId.toString())
-        );
-
-        if (!hasCommonFriend) {
-            throw new Error('User must be friends with at least one group member');
-        }
-
-        // Add member
-        group.members.push(new mongoose.Types.ObjectId(inviteeId));
-        await group.save();
-
-        return group;
+    if (!group) {
+      throw new Error('Group not found');
     }
 
-    /**
-     * Leave a group
-     */
-    static async leaveGroup(groupId: string, userId: string): Promise<void> {
-        const group = await GroupModel.findById(groupId);
-
-        if (!group) {
-            throw new Error('Group not found');
-        }
-
-        // Cannot leave if owner (must transfer ownership or delete group)
-        if (group.owner_id.toString() === userId) {
-            throw new Error('Owner cannot leave the group. Transfer ownership or delete the group.');
-        }
-
-        // Remove member
-        group.members = group.members.filter(m => m.toString() !== userId);
-        await group.save();
+    // Verify inviter is a member
+    const isInviterMember = group.members.some((m) => m.toString() === inviterId);
+    if (!isInviterMember) {
+      throw new Error('You are not a member of this group');
     }
 
-    /**
-     * Delete a group (owner only)
-     */
-    static async deleteGroup(groupId: string, userId: string): Promise<void> {
-        const group = await GroupModel.findById(groupId);
-
-        if (!group) {
-            throw new Error('Group not found');
-        }
-
-        if (group.owner_id.toString() !== userId) {
-            throw new Error('Only the owner can delete the group');
-        }
-
-        // Delete all messages
-        await GroupMessageModel.deleteMany({ group_id: groupId });
-
-        // Delete group
-        await GroupModel.deleteOne({ _id: groupId });
+    // Check if user is already a member
+    const isAlreadyMember = group.members.some((m) => m.toString() === inviteeId);
+    if (isAlreadyMember) {
+      throw new Error('User is already a member');
     }
 
-    /**
-     * Get message history
-     */
-    static async getMessages(groupId: string, userId: string, limit = 50): Promise<any[]> {
-        // Verify user is a member
-        const group = await GroupModel.findById(groupId);
-        if (!group) {
-            throw new Error('Group not found');
-        }
-
-        const isMember = group.members.some(m => m.toString() === userId);
-        if (!isMember) {
-            throw new Error('You are not a member of this group');
-        }
-
-        const messages = await GroupMessageModel.find({ group_id: groupId })
-            .sort({ created_at: -1 })
-            .limit(limit)
-            .populate('user_id', 'username profile_pic')
-            .lean();
-
-        return messages.reverse().map((msg: any) => ({
-            id: msg._id.toString(),
-            group_id: msg.group_id.toString(),
-            user: msg.user_id,
-            content: msg.content,
-            created_at: msg.created_at
-        }));
+    // Verify invitee is friends with at least one member
+    const invitee = await User.findById(inviteeId);
+    if (!invitee) {
+      throw new Error('User not found');
     }
 
-    /**
-     * Send a message (used by WebSocket handler)
-     */
-    static async sendMessage(groupId: string, userId: string, content: string): Promise<any> {
-        // Verify user is a member
-        const group = await GroupModel.findById(groupId);
-        if (!group) {
-            throw new Error('Group not found');
-        }
+    const inviteeFriends = invitee.friends.map((f: any) => f.toString());
+    const hasCommonFriend = group.members.some((memberId) =>
+      inviteeFriends.includes(memberId.toString())
+    );
 
-        const isMember = group.members.some(m => m.toString() === userId);
-        if (!isMember) {
-            throw new Error('You are not a member of this group');
-        }
-
-        const message = await GroupMessageModel.create({
-            group_id: groupId,
-            user_id: userId,
-            content
-        });
-
-        return message;
+    if (!hasCommonFriend) {
+      throw new Error('User must be friends with at least one group member');
     }
+
+    // Add member
+    group.members.push(new mongoose.Types.ObjectId(inviteeId));
+    await group.save();
+
+    return group;
+  }
+
+  /**
+   * Leave a group
+   */
+  static async leaveGroup(groupId: string, userId: string): Promise<void> {
+    const group = await GroupModel.findById(groupId);
+
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    // Cannot leave if owner (must transfer ownership or delete group)
+    if (group.owner_id.toString() === userId) {
+      throw new Error('Owner cannot leave the group. Transfer ownership or delete the group.');
+    }
+
+    // Remove member
+    group.members = group.members.filter((m) => m.toString() !== userId);
+    await group.save();
+  }
+
+  /**
+   * Delete a group (owner only)
+   */
+  static async deleteGroup(groupId: string, userId: string): Promise<void> {
+    const group = await GroupModel.findById(groupId);
+
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    if (group.owner_id.toString() !== userId) {
+      throw new Error('Only the owner can delete the group');
+    }
+
+    // Delete all messages
+    await GroupMessageModel.deleteMany({ group_id: groupId });
+
+    // Delete group
+    await GroupModel.deleteOne({ _id: groupId });
+  }
+
+  /**
+   * Get message history
+   */
+  static async getMessages(groupId: string, userId: string, limit = 50): Promise<any[]> {
+    // Verify user is a member
+    const group = await GroupModel.findById(groupId);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    const isMember = group.members.some((m) => m.toString() === userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this group');
+    }
+
+    const messages = await GroupMessageModel.find({ group_id: groupId })
+      .sort({ created_at: -1 })
+      .limit(limit)
+      .populate('user_id', 'username profile_pic')
+      .lean();
+
+    return messages.reverse().map((msg: any) => ({
+      id: msg._id.toString(),
+      group_id: msg.group_id.toString(),
+      user: msg.user_id,
+      content: msg.content,
+      created_at: msg.created_at,
+    }));
+  }
+
+  /**
+   * Send a message (used by WebSocket handler)
+   */
+  static async sendMessage(groupId: string, userId: string, content: string): Promise<any> {
+    // Verify user is a member
+    const group = await GroupModel.findById(groupId);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    const isMember = group.members.some((m) => m.toString() === userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this group');
+    }
+
+    const message = await GroupMessageModel.create({
+      group_id: groupId,
+      user_id: userId,
+      content,
+    });
+
+    return message;
+  }
 }
