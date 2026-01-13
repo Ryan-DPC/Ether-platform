@@ -140,6 +140,25 @@ pub fn launch_game(
                 // Clone existing Arc to move properly into thread
                 let state_arc = state.0.clone();
 
+                // OPTIMIZATION: Set High Priority (Windows Only)
+                #[cfg(target_os = "windows")]
+                {
+                    use windows::Win32::System::Threading::{OpenProcess, SetPriorityClass, PROCESS_SET_INFORMATION, HIGH_PRIORITY_CLASS};
+                    use windows::Win32::Foundation::CloseHandle;
+                    
+                    let pid = child.id();
+                    unsafe {
+                         if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
+                             if let Err(e) = SetPriorityClass(handle, HIGH_PRIORITY_CLASS) {
+                                 eprintln!("Failed to set process priority: {:?}", e);
+                             } else {
+                                 println!("Auto-Optimized: Set HIGH_PRIORITY for Game PID {}", pid);
+                             }
+                             let _ = CloseHandle(handle);
+                         }
+                    }
+                }
+
                 std::thread::spawn(move || {
                     match child.wait() {
                         Ok(status) => {
