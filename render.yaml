@@ -15,6 +15,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        sync: false
+      # Secrets managed in Dashboard (sync: false prevents overwrite)
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
@@ -27,35 +30,32 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
-      - key: PORT
-        sync: false
 
   # --------------------------------------------------------------------------------
-  # WEBSOCKET SERVER (Socket.io/Elysia)
+  # WEBSOCKET SERVER (Launcher/Legacy) - apps/server
   # --------------------------------------------------------------------------------
   - type: web
     name: vext-ws-server
     region: frankfurt
     env: node
     plan: free
-    rootDir: . # Root context for Monorepo
-    # Build: Install all dependencies
+    rootDir: .
     buildCommand: npm install -g bun && bun install
-    # Start: Run the server
-    startCommand: bun run --filter vext-ws-server start
+    startCommand: cd apps/server && bun run src/index.ts
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        sync: false
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
         sync: false
       - key: REDIS_URL
         sync: false
-      - key: PORT
-        sync: false
+
   # --------------------------------------------------------------------------------
-  # GAME SERVER (Dedicated)
+  # GAME SERVER (Dedicated Aether Strike) - apps/game-server
   # --------------------------------------------------------------------------------
   - type: web
     name: vext-game-server
@@ -72,4 +72,5 @@ services:
         value: https://vext-backend.onrender.com/api
       - key: PORT
         sync: false
-
+      - key: JWT_SECRET
+        sync: false
