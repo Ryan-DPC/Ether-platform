@@ -414,4 +414,46 @@ export class GameOwnershipService {
 
     return { success: true, message: 'Listing removed successfully' };
   }
+
+  /**
+   * Update playtime for a game
+   */
+  static async updatePlaytime(
+    userId: string,
+    gameIdOrKey: string,
+    minutes: number
+  ): Promise<IGameOwnership> {
+    if (minutes <= 0) return null as any; // No-op
+
+    const query: any = { user_id: userId };
+
+    // Check if valid ObjectId
+    if (mongoose.Types.ObjectId.isValid(gameIdOrKey)) {
+      // Try finding by _id of ownership OR game_id
+      // But usually launcher sends Game ID, not Ownership ID.
+      // Let's assume gameIdOrKey is the Game _id from the Games collection
+      query.game_id = gameIdOrKey;
+    } else {
+      // Fallback to game_key (folder name or manual key)
+      query.game_key = gameIdOrKey;
+    }
+
+    const ownership = await GameOwnershipModel.findOneAndUpdate(
+      query,
+      {
+        $inc: { playtime_minutes: minutes },
+        $set: { last_played_at: new Date() },
+      },
+      { new: true }
+    );
+
+    if (!ownership) {
+      // If ownership doesn't exist (e.g. Free to Play game played for first time?), should we create it?
+      // For Vext, you usually "Install" or "Buy" first.
+      // But if it's a manual add not yet tracked?
+      throw new Error('Game ownership record not found');
+    }
+
+    return ownership;
+  }
 }

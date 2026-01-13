@@ -1,0 +1,21 @@
+{
+  "name": "vext-game-server",
+  "version": "1.0.0",
+  "description": "Dedicated Game Server for Vext Platform Games (Aether Strike)",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.2",
+    "axios": "^1.6.2",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "bun-types": "latest",
+    "@types/socket.io": "^3.0.2"
+  }
+}

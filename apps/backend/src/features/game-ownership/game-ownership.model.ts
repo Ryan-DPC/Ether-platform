@@ -20,6 +20,8 @@ export interface IGameOwnership extends Document {
   exe_path?: string | null;
   game_description?: string | null;
   installed: boolean;
+  playtime_minutes: number;
+  last_played_at?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +46,8 @@ const gameOwnershipSchema = new Schema<IGameOwnership>(
     exe_path: { type: String, default: null },
     game_description: { type: String, default: null },
     installed: { type: Boolean, default: false },
+    playtime_minutes: { type: Number, default: 0 },
+    last_played_at: { type: Date, default: null },
   },
   { timestamps: true }
 );

@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { UsersService } from './users.service';
+import { GameOwnershipService } from '../game-ownership/game-ownership.service';
 
 export const usersRoutes = new Elysia({ prefix: '/api/users' })
   .use(
@@ -147,6 +148,26 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
       return { message: error.message };
     }
   })
+
+  // Playtime Tracking
+  .post(
+    '/playtime',
+    async ({ user, body, set }) => {
+      try {
+        const { gameId, minutes } = body;
+        return await GameOwnershipService.updatePlaytime(user!.id as string, gameId, minutes);
+      } catch (error: any) {
+        set.status = 500;
+        return { message: error.message };
+      }
+    },
+    {
+      body: t.Object({
+        gameId: t.String(),
+        minutes: t.Number(),
+      }),
+    }
+  )
 
   // ELO
   .get('/:userId/elo', async ({ params: { userId }, set }) => {
