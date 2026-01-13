@@ -16,13 +16,19 @@ const io = new Server(httpServer, {
   },
 });
 
-// Store active lobbies
+interface GameState {
+  turn: string; // socketId
+  scores: Record<string, number>;
+  round: number;
+}
+
 interface Lobby {
   id: string;
   players: string[]; // socket ids
   gameType: string;
   status: 'waiting' | 'playing';
   hostId: string;
+  state?: GameState;
 }
 
 const lobbies: Map<string, Lobby> = new Map();
@@ -30,24 +36,14 @@ const lobbies: Map<string, Lobby> = new Map();
 io.on('connection', (socket: Socket) => {
   console.log(`Player connected: ${socket.id}`);
 
-  // 1. Auth Handshake (Optional but recommended)
-  // Client sends { token: "..." }
+  // 1. Auth Handshake
   socket.on('auth', async (data: { token: string }) => {
-    try {
-      // Validate with Backend
-      // const res = await axios.get(`${BACKEND_URL}/users/me`, { headers: { Authorization: `Bearer ${data.token}` } });
-      // socket.data.user = res.data;
-      // console.log(`User authenticated: ${res.data.username}`);
-      socket.emit('auth:success', { id: socket.id });
-    } catch (e) {
-      console.error('Auth failed', e);
-      socket.emit('auth:fail', { message: 'Invalid token' });
-    }
+    // Mock Auth for test
+    socket.emit('auth:success', { id: socket.id });
   });
 
-  // 2. Create Lobby
+  // 2. Create Lobby (1v1)
   socket.on('lobby:create', (userId: string) => {
-    // User ID or username
     const lobbyId = Math.random().toString(36).substring(7);
     lobbies.set(lobbyId, {
       id: lobbyId,
@@ -58,39 +54,64 @@ io.on('connection', (socket: Socket) => {
     });
     socket.join(lobbyId);
     socket.emit('lobby:joined', { lobbyId, isHost: true });
-    console.log(`Lobby created: ${lobbyId} by ${socket.id}`);
+    console.log(`Lobby 1v1 created: ${lobbyId} by ${socket.id}`);
   });
 
   // 3. Join Lobby
   socket.on('lobby:join', (lobbyId: string) => {
     const lobby = lobbies.get(lobbyId);
-    if (lobby && lobby.status === 'waiting') {
+    if (lobby && lobby.status === 'waiting' && lobby.players.length < 2) {
       lobby.players.push(socket.id);
       socket.join(lobbyId);
+
       socket.emit('lobby:joined', { lobbyId, isHost: false });
       io.to(lobbyId).emit('player:joined', { playerId: socket.id, count: lobby.players.length });
-      console.log(`Player ${socket.id} joined lobby ${lobbyId}`);
+
+      if (lobby.players.length === 2) {
+        // Auto-start for test
+        lobby.status = 'playing';
+        lobby.state = {
+          turn: lobby.hostId, // Host starts
+          scores: { [lobby.players[0]]: 0, [lobby.players[1]]: 0 },
+          round: 1,
+        };
+        io.to(lobbyId).emit('game:started', {
+          map: 'default_arena',
+          players: lobby.players,
+          state: lobby.state,
+        });
+        console.log(`1v1 Game started in lobby ${lobbyId}`);
+      }
     } else {
-      socket.emit('lobby:error', { message: 'Lobby not found or full' });
+      socket.emit('lobby:error', { message: 'Lobby full or not found' });
     }
   });
 
-  // 4. Start Game
-  socket.on('game:start', (lobbyId: string) => {
-    const lobby = lobbies.get(lobbyId);
-    if (lobby && lobby.hostId === socket.id) {
-      lobby.status = 'playing';
-      io.to(lobbyId).emit('game:started', { map: 'default_arena' });
-      console.log(`Game started in lobby ${lobbyId}`);
-    }
-  });
+  // 4. Game Action (Turn Based Test)
+  socket.on('game:move', (data: { lobbyId: string; action: string }) => {
+    const lobby = lobbies.get(data.lobbyId);
+    if (lobby && lobby.status === 'playing' && lobby.state) {
+      if (lobby.state.turn !== socket.id) {
+        socket.emit('error', { message: 'Not your turn' });
+        return;
+      }
 
-  // 5. Game Events (Relay)
-  socket.on('game:action', (data: any) => {
-    // Broadcast to others in the room
-    // Assume data has { lobbyId, action, ... }
-    if (data.lobbyId) {
-      socket.to(data.lobbyId).emit('game:action', { sender: socket.id, ...data });
+      // Process Move (Simplified)
+      console.log(`Move from ${socket.id}: ${data.action}`);
+
+      // Update State
+      // Switch turn
+      const opponent = lobby.players.find((p) => p !== socket.id);
+      if (opponent) {
+        lobby.state.turn = opponent;
+        lobby.state.round++;
+
+        // Broadcast update
+        io.to(data.lobbyId).emit('game:update', {
+          lastAction: { player: socket.id, action: data.action },
+          state: lobby.state,
+        });
+      }
     }
   });
 

@@ -54,3 +54,22 @@ services:
         sync: false
       - key: PORT
         sync: false
+  # --------------------------------------------------------------------------------
+  # GAME SERVER (Dedicated)
+  # --------------------------------------------------------------------------------
+  - type: web
+    name: vext-game-server
+    region: frankfurt
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install -g bun && bun install
+    startCommand: cd apps/game-server && bun run src/index.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_URL
+        value: https://vext-backend.onrender.com/api
+      - key: PORT
+        sync: false
+
