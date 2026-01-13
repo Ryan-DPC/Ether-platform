@@ -1,4 +1,3 @@
-import { ref } from 'vue';
 import { useUserStore } from '../stores/userStore';
 import { useFriendsStore } from '../stores/friendsStore';
 import { useAlertStore } from '../stores/alertStore';
@@ -133,7 +132,7 @@ export function useGameLauncher() {
       }
 
       // Start Install
-      const result = await tauriAPI.installGame(
+      await tauriAPI.installGame(
         zipUrl,
         installPath,
         folderName,

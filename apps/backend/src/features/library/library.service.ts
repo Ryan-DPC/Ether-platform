@@ -277,7 +277,9 @@ export class LibraryService {
             gameType = 'exe';
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
 
       let transaction: Transaction | null = null;
 
@@ -670,7 +672,9 @@ export class LibraryService {
                 }
               }
             }
-          } catch (e) {}
+          } catch (e) {
+            /* ignore */
+          }
         }
 
         return {
@@ -934,7 +938,9 @@ export class LibraryService {
             gameType = 'exe';
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
 
       await GameOwnership.create({
         user_id: keyObjId,

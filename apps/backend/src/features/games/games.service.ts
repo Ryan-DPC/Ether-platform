@@ -63,7 +63,9 @@ export class GamesService {
     // 4. Cache Merged Results
     try {
       await redisService.setWithTTL(cacheKey, JSON.stringify(mergedGames));
-    } catch (e) {}
+    } catch (e) {
+      /* ignore */
+    }
 
     return mergedGames;
   }
@@ -137,7 +139,9 @@ export class GamesService {
     // Invalidate 'games:all' cache to reflect new list
     try {
       await redisService.del('games:all');
-    } catch (e) {}
+    } catch (e) {
+      /* ignore */
+    }
     return result;
   }
 
@@ -154,7 +158,9 @@ export class GamesService {
         redisService.del('games:all'),
         redisService.deletePattern(`game:details:*${gameId}*`), // Invalidate details for this game if name matches or just use pattern
       ]);
-    } catch (e) {}
+    } catch (e) {
+      /* ignore */
+    }
     return result;
   }
 
@@ -266,7 +272,9 @@ export class GamesService {
     const gameDir = path.join(gamesPath, gameId);
     try {
       await fs.rm(gameDir, { recursive: true, force: true });
-    } catch (e) {}
+    } catch (e) {
+      /* ignore */
+    }
     await fs.mkdir(gameDir, { recursive: true });
 
     if (extension === '.zip') {

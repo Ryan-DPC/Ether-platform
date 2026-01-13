@@ -60,6 +60,10 @@ export class GameSyncService {
   static async needsSync(gameSlug: string, gamePath: string) {
     try {
       const manifestPath = path.join(gamePath, 'manifest.json');
+      // Simplified without redundant try/catch
+      // The original try/catch here was checking for manifest existence, which is useful.
+      // Reverting to the original behavior as removing it would cause an unhandled error
+      // if the manifest file does not exist.
       try {
         await fs.promises.access(manifestPath);
       } catch {
@@ -114,7 +118,9 @@ export class GameSyncService {
       try {
         await fs.promises.access(imagePath);
         return { path: imagePath, name };
-      } catch {}
+      } catch {
+        /* ignore */
+      }
     }
     return null;
   }
@@ -166,17 +172,12 @@ export class GameSyncService {
       };
 
       // 1. Upload manifest
-      try {
-        const manifestResult = await this.uploadFileToCloudinary(
-          manifestPath,
-          `games/dev/${gameSlug}/manifest`,
-          'raw'
-        );
-        results.manifest = manifestResult.secure_url;
-      } catch (error) {
-        // If manifest fails, we can't continue
-        throw error;
-      }
+      const manifestResult = await this.uploadFileToCloudinary(
+        manifestPath,
+        `games/dev/${gameSlug}/manifest`,
+        'raw'
+      );
+      results.manifest = manifestResult.secure_url;
 
       // 2. Upload Image
       const gameImage = await this.findGameImage(gamePath);
@@ -188,7 +189,9 @@ export class GameSyncService {
             'image'
           );
           results.image = imageResult.secure_url;
-        } catch (e) {}
+        } catch (e) {
+          /* ignore */
+        }
       }
 
       // 3. Zip and Upload
