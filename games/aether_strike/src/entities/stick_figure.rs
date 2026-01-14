@@ -58,7 +58,7 @@ impl StickFigure {
             let dest_h = if let Some(rect) = source_rect { rect.h * scale } else { tex.height() * scale };
 
             draw_texture_ex(
-                *tex,
+                tex,
                 self.position.x - dest_w / 2.0,
                 self.position.y - dest_h / 2.0,
                 WHITE,
