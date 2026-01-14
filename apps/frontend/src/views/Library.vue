@@ -176,7 +176,7 @@ const filteredFriends = computed(() => {
 // Actions
 import { useGameLauncher } from '../composables/useGameLauncher';
 
-const { launchGame: launcherLaunch, installGame: launcherInstall } = useGameLauncher();
+const { launchGame: launcherLaunch, installGame: launcherInstall, uninstallGame: launcherUninstall } = useGameLauncher();
 
 const handleAddGame = async () => {
   try {
@@ -245,6 +245,14 @@ const installGame = async (game: any) => {
 
 const launchGame = async (folderName: string) => {
   await launcherLaunch(folderName);
+}
+
+const handleUninstall = async (game: any) => {
+    const success = await launcherUninstall(game);
+    if (success) {
+        game.installed = false;
+        game.status = 'owned'; 
+    }
 }
 
 // Social Actions
@@ -373,7 +381,10 @@ const handleAddFriendFromGroup = async (username: string) => {
                         <img :src="game.image_url || defaultGameImg">
                         <div class="feat-overlay">
                             <h4>{{ game.game_name }}</h4>
-                            <button v-if="game.installed" @click="launchGame(game.folder_name)" class="btn-action">PLAY</button>
+                            <div v-if="game.installed" class="play-actions">
+                                <button @click="launchGame(game.folder_name)" class="btn-action">PLAY</button>
+                                <button @click.stop="handleUninstall(game)" class="btn-action-icon" title="Uninstall"><i class="fas fa-trash"></i></button>
+                            </div>
                             <button v-else @click="installGame(game)" class="btn-action install-icon" title="Install">
                                 <i class="fas fa-download"></i>
                             </button>
@@ -393,7 +404,10 @@ const handleAddFriendFromGroup = async (username: string) => {
                                 <div v-if="installingGameId === (game._id || game.folder_name)" class="install-status">
                                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
                                 </div>
-                                <button v-else-if="game.installed" @click="launchGame(game.folder_name)" class="btn-grid-play"><i class="fas fa-play"></i></button>
+                                <div v-else-if="game.installed" class="play-actions">
+                                    <button @click="launchGame(game.folder_name)" class="btn-grid-play"><i class="fas fa-play"></i></button>
+                                     <button @click.stop="handleUninstall(game)" class="btn-grid-uninstall" title="Uninstall"><i class="fas fa-trash"></i></button>
+                                </div>
                                 <button v-else @click="installGame(game)" class="btn-grid-install"><i class="fas fa-download"></i></button>
                             </div>
                         </div>
@@ -697,6 +711,17 @@ const handleAddFriendFromGroup = async (username: string) => {
     border-radius: 50%;
     padding: 0;
 }
+.play-actions {
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+}
+.btn-action-icon {
+    background: rgba(255, 255, 255, 0.1); color: #ccc;
+    width: 32px; height: 32px; border-radius: 4px;
+    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.btn-action-icon:hover {
+    background: rgba(255, 0, 0, 0.2); color: #ff4d4d;
+}
 
 /* Grid */
 .games-grid {
@@ -729,6 +754,15 @@ const handleAddFriendFromGroup = async (username: string) => {
 }
 .btn-grid-play { background: #ff7eb3; color: white; box-shadow: 0 0 15px rgba(255, 126, 179, 0.5); }
 .btn-grid-install { background: #7afcff; color: #120c18; box-shadow: 0 0 15px rgba(122, 252, 255, 0.5); }
+.btn-grid-uninstall {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: none; background: rgba(0, 0, 0, 0.5); color: #ccc;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.btn-grid-uninstall:hover {
+    background: #ff4d4d; color: white;
+}
 
 .card-details h4 { margin: 0 0 6px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-badges { display: flex; gap: 6px; font-size: 0.7rem; }
