@@ -274,45 +274,41 @@ async fn main() {
                         
                         // Reposition Player (Forward)
                         if let Some(p) = &mut _player {
-                            p.position = vec2(420.0, 300.0); // Avancé pour laisser place aux gros sprites derrière
+                            p.position = vec2(400.0, 320.0); // Down & Back a bit
                         }
                         
-                        // Create Mock Teammates (Big Sprites 140x140)
+                        // Create Mock Teammates (Adjusted based on feedback)
                         _teammates.clear();
-                        // 1. DarkKnight (Top Back)
-                        let mut t1 = StickFigure::new(vec2(280.0, 180.0)); // Reculé, Monté
+                        // 1. DarkKnight (Top Back) - User: "Descendre un tout petit peu"
+                        let mut t1 = StickFigure::new(vec2(280.0, 200.0)); // Down (180->200)
                         t1.color = Color::from_rgba(200, 50, 50, 255); 
                         _teammates.push(t1);
-                        // 2. Elara (Middle Far Back)
-                        let mut t2 = StickFigure::new(vec2(180.0, 360.0)); // Très reculé, Centré verticalement
+                        // 2. Elara (Mage - Mid)
+                        let mut t2 = StickFigure::new(vec2(150.0, 360.0)); 
                         t2.color = Color::from_rgba(50, 100, 200, 255); 
                         _teammates.push(t2);
-                        // 3. SwiftArrow (Bottom Back)
-                        let mut t3 = StickFigure::new(vec2(280.0, 440.0)); // Reculé, Baissé
+                        // 3. SwiftArrow (Bot)
+                        let mut t3 = StickFigure::new(vec2(280.0, 460.0)); 
                         t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
-                        // Create Mock Enemies (Axial Symmetry 1280)
-                        // Player (420) -> Boss (860)
-                        // T1 (280, 180) -> M1 (1000, 180)
-                        // T2 (180, 360) -> M2 (1100, 360)
-                        // T3 (280, 440) -> M3 (1000, 440)
+                        // Create Mock Enemies (Closer)
+                        // User: "Avance encore un poil" -> Move Left by 30px
                         
                         _enemies.clear();
                         // 1. Shadow Minion
-                        _enemies.push(Enemy::new(vec2(1000.0, 180.0)));
+                        _enemies.push(Enemy::new(vec2(790.0, 200.0))); // 820->790
                         // 2. Dark Spirit
-                        _enemies.push(Enemy::new(vec2(1100.0, 360.0)));
+                        _enemies.push(Enemy::new(vec2(890.0, 360.0))); // 920->890
                         // 3. Void Crawler
-                        _enemies.push(Enemy::new(vec2(1000.0, 440.0)));
+                        _enemies.push(Enemy::new(vec2(790.0, 460.0))); // 820->790
                         
                         is_player_turn = true;
-                        enemy_hp = 500.0;
-                        enemy_max_hp = 500.0;
+                        enemy_hp = 500.0; 
                         
                         // Initialize boss
                         if let Some(e) = &mut _enemy {
-                            e.position = vec2(860.0, 300.0); // Symmetry Player
+                            e.position = vec2(670.0, 320.0); // 700->670
                             e.max_health = 500.0;
                             e.health = 500.0;
                             e.add_threat("teammate_0", 40.0); 
@@ -877,8 +873,8 @@ async fn main() {
                     if let Some(r) = rect {
                          draw_texture_ex(
                             &assets.sprite_sheet,
-                            player.position.x,
-                            player.position.y,
+                            player.position.x - 70.0,
+                            player.position.y - 70.0,
                             WHITE,
                             DrawTextureParams {
                                 source: Some(r),
@@ -896,15 +892,15 @@ async fn main() {
                 
                 // Draw Minion Enemies
                 for enemy in &mut _enemies {
-                     // Draw smaller
+                     // Draw (Size 140 to match teammates)
                      draw_texture_ex(
                         &assets.sprite_sheet,
-                        enemy.position.x,
-                        enemy.position.y,
+                        enemy.position.x - 70.0,
+                        enemy.position.y - 70.0,
                         WHITE,
                         DrawTextureParams {
                              source: Some(assets.get_enemy_rect(0)),
-                             dest_size: Some(vec2(80.0, 80.0)), // Smaller minions
+                             dest_size: Some(vec2(140.0, 140.0)), 
                              flip_x: true,
                              ..Default::default()
                         }
@@ -916,8 +912,8 @@ async fn main() {
                     // Draw Boss Bigger
                      draw_texture_ex(
                         &assets.sprite_sheet,
-                        enemy.position.x,
-                        enemy.position.y,
+                        enemy.position.x - 90.0,
+                        enemy.position.y - 90.0,
                         WHITE,
                         DrawTextureParams {
                              source: Some(assets.get_enemy_rect(0)),
