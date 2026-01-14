@@ -288,7 +288,7 @@ async fn main() {
                             let ws_url = network_api::get_ws_url();
                             
                             match GameClient::connect(
-                                ws_url,
+                                &ws_url,
                                 &vext_token,
                                 lobby_id.clone(),
                                 selected_class.unwrap_or(PlayerClass::Warrior).name().to_string(),
@@ -406,7 +406,7 @@ async fn main() {
                         let ws_url = network_api::get_ws_url();
                         
                         match GameClient::connect(
-                            ws_url,
+                            &ws_url,
                             &vext_token,
                             lobby_id.clone(),
                             selected_class.unwrap_or(PlayerClass::Warrior).name().to_string(),
