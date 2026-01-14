@@ -28,11 +28,25 @@ export function useGameLauncher() {
     }
 
     try {
-      const installPath = localStorage.getItem('etherInstallPath');
+      let installPath = localStorage.getItem('etherInstallPath');
+
+      // Fallback: Check libraries if default path is missing
+      if (!installPath) {
+        const libraryPathsStr = localStorage.getItem('vextLibraryPaths');
+        if (libraryPathsStr) {
+          try {
+            const paths = JSON.parse(libraryPathsStr);
+            if (paths.length > 0) installPath = paths[0];
+          } catch (e) {
+            console.error('Error parsing library paths', e);
+          }
+        }
+      }
+
       if (!installPath) {
         alertStore.showAlert({
           title: 'Configuration Error',
-          message: 'Install path not configured.',
+          message: 'Install path not configured. Please set a library path in Settings.',
           type: 'warning',
         });
         return;

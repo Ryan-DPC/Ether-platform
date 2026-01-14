@@ -113,34 +113,7 @@ jobs:
           
           $metadata | ConvertTo-Json -Depth 10 | Out-File -FilePath "dist/game_metadata.json" -Encoding utf8
           
-          # Copier les fichiers README et documentation
-          if (Test-Path "README.md") {
-            Copy-Item "README.md" -Destination "dist/"
-          }
-          if (Test-Path "GAME_GUIDE.md") {
-            Copy-Item "GAME_GUIDE.md" -Destination "dist/"
-          }
-          
-          # Créer un fichier de version
-          @"
-          Aether Strike - Build Information
-          ==================================
-          Version: 0.1.0
-          Build Date: ${{ steps.build_info.outputs.build_date }}
-          Commit: ${{ github.sha }}
-          Size: ${{ steps.build_info.outputs.exe_size }}
-          Platform: Windows x64
-          
-          Changes in this build:
-          - Complete menu system with Solo/Online modes
-          - Character creation with 3 classes (Warrior/Mage/Archer)
-          - Online session list with public/private servers
-          - Server creation interface
-          - Password-protected sessions
-          - Friend dashboard integration
-          - Level scaling system
-          - Passive abilities evolution
-          "@ | Out-File -FilePath "dist/BUILD_INFO.txt" -Encoding utf8
+          echo "✅ Game package prepared successfully (EXE + Metadata only)!"
           
           echo "✅ Game package prepared successfully!"
 
