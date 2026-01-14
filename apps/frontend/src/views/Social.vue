@@ -43,11 +43,18 @@ onMounted(async () => {
   groupStore.setupWebSocketListeners();
 
   window.addEventListener('chat:new-message', handlePrivateMessage as EventListener);
+  // Listen for friend status changes
+  socketService.on('friend:status-changed', handleFriendStatusChange);
 });
 
 onUnmounted(() => {
   window.removeEventListener('chat:new-message', handlePrivateMessage as EventListener);
+  socketService.off('friend:status-changed');
 });
+
+const handleFriendStatusChange = (data: any) => {
+  friendsStore.updateFriendStatus(data.userId, data.status, data.lobbyId);
+};
 
 const handleAccept = async (requestId: string) => {
   try {
