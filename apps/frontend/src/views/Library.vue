@@ -220,26 +220,43 @@ const installGame = async (game: any) => {
     cancelText: 'Cancel'
   })) return
 
-  // Use Composable
-  const result = await launcherInstall(game);
-
-  if (result.success && result.gameId) {
-    installingGameId.value = result.gameId
-    installProgress.value = {
+  const gameId = game._id || game.folder_name; // Match ID logic
+  installingGameId.value = gameId;
+  installProgress.value = {
       progress: 0,
       speed: '0 MB/s',
       downloaded: '0 MB',
-      total: '...',
+      total: 'Computing...',
       eta: '...',
       type: 'download'
-    }
-  } else if (result.reason === 'no_path') {
-     // Trigger path selector fallback if no default path
-     const selectedPath = await pathSelector.value?.show()
-     if (selectedPath) {
-         // Recursive retry with explicit path
-         await launcherInstall(game, selectedPath);
-     }
+  };
+
+  // Use Composable
+  const result = await launcherInstall(game);
+
+  if (!result.success) {
+      if (result.reason === 'no_path') {
+           installingGameId.value = null; // Clear spinner to show dialog maybe?
+           // Trigger path selector fallback if no default path
+           const selectedPath = await pathSelector.value?.show()
+           if (selectedPath) {
+               // Recursive retry with explicit path. 
+               // Note: recursive call will re-set installingGameId properly
+               installingGameId.value = null;
+               await installGame(game); // Re-enter
+               return;
+           }
+      }
+      // General failure
+      installingGameId.value = null;
+  } else {
+      // Success. useGameLauncher returns only after completion.
+      // onInstallComplete listener should have handled the cleanup and status update mostly.
+      // But just in case invoke returns but event was missed:
+      installingGameId.value = null;
+      // Ensure local state is updated
+      game.installed = true;
+      game.status = 'installed';
   }
 }
 
