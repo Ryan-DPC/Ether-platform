@@ -729,7 +729,7 @@ async fn main() {
 
                 // Dessiner les autres joueurs
                 for player in other_players.values() {
-                    let rect = match player.class.as_str() {
+                    let rect = match player.class.to_lowercase().as_str() {
                         "mage" => assets.get_mage_rect(0),
                         "archer" => assets.get_archer_rect(0),
                         _ => assets.get_warrior_rect(0),
