@@ -17,12 +17,88 @@ impl HUD {
         screen_width: f32, 
         screen_height: f32, 
         character_name: &str, 
-        player_class: &str,
         player_class_enum: crate::class_system::PlayerClass,
+        other_players: &std::collections::HashMap<String, crate::network_client::RemotePlayer>,
         ui_state: &mut BattleUIState
     ) {
         // --- CONSTANTS ---
         let padding = 20.0;
+        
+        // --- BATTLE TIMELINE (Top Center) ---
+        let timeline_w = 400.0;
+        let timeline_h = 30.0;
+        let timeline_x = (screen_width - timeline_w) / 2.0;
+        let timeline_y = 15.0;
+
+        // Draw timeline track
+        draw_rectangle(timeline_x, timeline_y + 10.0, timeline_w, 4.0, Color::from_rgba(100, 100, 100, 150));
+        draw_text("TIMELINE (Speed Order)", timeline_x, timeline_y - 5.0, 14.0, LIGHTGRAY);
+
+        // Collect all participants
+        struct Participant {
+            name: String,
+            color: Color,
+            speed: f32,
+            is_enemy: bool,
+            initial: String,
+        }
+
+        let mut participants = Vec::new();
+
+        // Local player
+        participants.push(Participant {
+            name: character_name.to_string(),
+            color: player_class_enum.color(),
+            speed: game_state.resources.speed,
+            is_enemy: false,
+            initial: character_name.chars().next().unwrap_or('?').to_string(),
+        });
+
+        // Other players
+        for p in other_players.values() {
+            let p_speed = match p.class.to_lowercase().as_str() {
+                "archer" => 120.0,
+                "mage" => 100.0,
+                _ => 80.0,
+            };
+            let p_color = match p.class.to_lowercase().as_str() {
+                "archer" => Color::from_rgba(50, 200, 100, 255),
+                "mage" => Color::from_rgba(50, 100, 200, 255),
+                _ => Color::from_rgba(200, 50, 50, 255),
+            };
+            participants.push(Participant {
+                name: p.username.clone(),
+                color: p_color,
+                speed: p_speed,
+                is_enemy: false,
+                initial: p.username.chars().next().unwrap_or('?').to_string(),
+            });
+        }
+
+        // Enemy (Mock speed 90.0 for now)
+        participants.push(Participant {
+            name: "Enemy".to_string(),
+            color: ORANGE,
+            speed: 90.0,
+            is_enemy: true,
+            initial: "E".to_string(),
+        });
+
+        // Draw symbols on timeline
+        // Speed affects position: max speed is roughly 150 for now
+        let max_speed = 150.0;
+        for p in participants {
+            let progress = (p.speed / max_speed).clamp(0.0, 1.0);
+            let pos_x = timeline_x + progress * timeline_w;
+            
+            let icon_size = 18.0;
+            draw_circle(pos_x, timeline_y + 12.0, icon_size, p.color);
+            draw_circle_lines(pos_x, timeline_y + 12.0, icon_size, 2.0, WHITE);
+            draw_text(&p.initial, pos_x - 5.0, timeline_y + 18.0, 20.0, WHITE);
+            
+            // Highlight current player turn? (Simplified for now)
+        }
+
         
         // ... (Top UI remains same)
         let top_ui_h = 90.0;
@@ -41,7 +117,7 @@ impl HUD {
         // Name & Class
         let text_x = padding + avatar_size + 15.0;
         draw_text(character_name, text_x, padding + 22.0, 24.0, WHITE);
-        draw_text(&format!("Lv.1 {}", player_class.to_uppercase()), text_x, padding + 45.0, 16.0, GOLD);
+        draw_text(&format!("Lv.1 {}", player_class_enum.name().to_uppercase()), text_x, padding + 45.0, 16.0, GOLD);
 
         // Health Bar
         let hp_percent = game_state.resources.current_hp / game_state.resources.max_hp;

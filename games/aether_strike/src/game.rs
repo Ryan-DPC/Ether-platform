@@ -12,10 +12,11 @@ pub struct Resources {
     pub current_hp: f32,
     pub max_hp: f32,
     pub hp_regen: f32,
+    pub speed: f32,
 }
 
 impl Resources {
-    pub fn new(max_mana: u32, max_hp: f32) -> Self {
+    pub fn new(max_mana: u32, max_hp: f32, speed: f32) -> Self {
         Resources {
             gold: 0,
             mana: max_mana,
@@ -24,6 +25,7 @@ impl Resources {
             current_hp: max_hp,
             max_hp,
             hp_regen: 1.0,
+            speed,
         }
     }
 
@@ -80,9 +82,10 @@ impl GameState {
         let passives = Passive::get_for_class(player_class);
         let max_mana = player_class.base_mana();
         let max_hp = player_class.base_hp();
+        let speed = player_class.base_speed();
         
         GameState {
-            resources: Resources::new(max_mana, max_hp),
+            resources: Resources::new(max_mana, max_hp, speed),
             inventory: Inventory::new(),
             player_class,
             active_passives: passives,

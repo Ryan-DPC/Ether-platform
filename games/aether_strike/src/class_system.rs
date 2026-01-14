@@ -33,6 +33,14 @@ impl PlayerClass {
         }
     }
 
+    pub fn base_speed(&self) -> f32 {
+        match self {
+            PlayerClass::Warrior => 80.0,
+            PlayerClass::Mage => 100.0,
+            PlayerClass::Archer => 120.0,
+        }
+    }
+
     pub fn color(&self) -> Color {
         match self {
             PlayerClass::Warrior => Color::from_rgba(200, 50, 50, 255),
