@@ -849,12 +849,13 @@ async fn main() {
                         gs, 
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
-                        &character_name_input, // Use character name without discriminant
+                        &character_name_input,
                         class_enum,
                         &other_players,
                         e_hp_percent,
                         is_my_turn,
-                        &mut battle_ui_state
+                        &mut battle_ui_state,
+                        &combat_logs,
                     ) {
                         // Handle actions
                         if is_solo_mode {
@@ -945,23 +946,7 @@ async fn main() {
                     }
                 }
 
-                // --- DRAW COMBAT LOGS ---
-                let log_x = 10.0;
-                let log_y = 120.0;
-                let log_w = 280.0;
-                let log_h = 180.0;
-                
-                draw_rectangle(log_x, log_y, log_w, log_h, Color::from_rgba(10, 10, 15, 200));
-                draw_rectangle_lines(log_x, log_y, log_w, log_h, 1.0, Color::from_rgba(60, 60, 80, 255));
-                draw_text("Combat Log", log_x + 10.0, log_y + 18.0, 14.0, GOLD);
-                draw_line(log_x + 5.0, log_y + 25.0, log_x + log_w - 5.0, log_y + 25.0, 1.0, Color::from_rgba(60, 60, 80, 255));
-                
-                for (i, log) in combat_logs.iter().rev().take(8).enumerate() {
-                    let text_y = log_y + 45.0 + (i as f32 * 18.0);
-                    if text_y < log_y + log_h - 10.0 {
-                        draw_text(log, log_x + 10.0, text_y, 13.0, LIGHTGRAY);
-                    }
-                }
+                // Combat log is now drawn inside HUD::draw()
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::MainMenu;
