@@ -7,6 +7,10 @@ import {
   handleStickArenaMessage,
   handleStickArenaDisconnect,
 } from './features/stick-arena/stick-arena.socket';
+import {
+  handleAetherStrikeMessage,
+  handleAetherStrikeDisconnect,
+} from './features/aether-strike/aether-strike.socket';
 import { handleGroupMessage } from './handlers/groups';
 
 export const handleWsMessage = async (ws: any, message: any) => {
@@ -17,14 +21,7 @@ export const handleWsMessage = async (ws: any, message: any) => {
     if (typeof message === 'string') {
       const parsed = JSON.parse(message);
       type = parsed.type;
-      payload = parsed.data || parsed.payload; // Support both data and payload wrapping
-      // Legacy frontend sometimes sends raw arguments, but mostly objects.
-      // If message is just "eventName", handled below?
-      // Socket.IO sends [eventName, ...args]. We assumed custom protocol {type, data}.
-      // If the legacy frontend uses Socket.IO client, it sends Socket.IO packets (42["event", ...]).
-      // BUT, our task is to migrate the server to Elysia, implying the client ALSO changes or we assume usage of standard WS.
-      // The prompt says "migrating WebSocket Logic". Usually implies moving away from Socket.IO entirely.
-      // I will assume standard JSON: { type: "event", data: ... }
+      payload = parsed.data || parsed.payload;
     } else {
       type = message.type;
       payload = message.data;
@@ -35,7 +32,6 @@ export const handleWsMessage = async (ws: any, message: any) => {
   }
 
   if (!type) {
-    // Handle Socket.IO heartbeat or raw strings if needed, but for now ignore
     return;
   }
 
@@ -44,6 +40,11 @@ export const handleWsMessage = async (ws: any, message: any) => {
   try {
     if (type.startsWith('stick-arena:')) {
       handleStickArenaMessage(ws, type, payload);
+      return;
+    }
+
+    if (type.startsWith('aether-strike:')) {
+      handleAetherStrikeMessage(ws, type, payload);
       return;
     }
 
@@ -92,4 +93,5 @@ export const handleWsMessage = async (ws: any, message: any) => {
 export const handleWsDisconnect = async (ws: any) => {
   handleLobbyDisconnect(ws);
   handleStickArenaDisconnect(ws);
+  handleAetherStrikeDisconnect(ws);
 };
