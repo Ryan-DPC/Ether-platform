@@ -692,6 +692,18 @@ async fn main() {
                                     }
                                 }
                             }
+                            GameEvent::PlayerUpdated { player_id, class } => {
+                                if let Some(player) = other_players.get_mut(&player_id) {
+                                    player.class = class;
+                                }
+                            }
+                            GameEvent::GameState { players, .. } => {
+                                for p in players {
+                                    if p.username != player_profile.vext_username {
+                                        other_players.insert(p.userId.clone(), p);
+                                    }
+                                }
+                            }
                             GameEvent::PlayerLeft { player_id } => {
                                 other_players.remove(&player_id);
                             }

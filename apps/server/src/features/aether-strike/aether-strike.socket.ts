@@ -130,23 +130,23 @@ class AetherStrikeManager {
           player.class = payload.newClass;
 
           // Broadcast update
-          ws.publish(
-            `aether-strike:${lobby.id}`,
-            JSON.stringify({
-              type: 'aether-strike:player-updated',
-              data: {
-                playerId: player.userId,
-                username: player.username,
-                class: player.class,
-                position: player.position,
-              },
-            })
-          );
-          // Send back to sender too just in case or rely on local state?
-          // Actually backend broadcast usually goes to everyone subscribed (including sender) if using pub/sub correctly?
-          // Render/Bun WebSocket publish typically sends to all subscribers of the topic EXCEPT sender sometimes initiated by publish?
-          // Let's use broadcastGameState for simplicity to ensure sync? Or specific event.
-          // Let's stick to specific event `player-updated`.
+          const updateMsg = JSON.stringify({
+            type: 'aether-strike:player-updated',
+            data: {
+              playerId: player.userId,
+              username: player.username,
+              class: player.class,
+              position: player.position,
+            },
+          });
+
+          // Send to everyone in the lobby to ensure sync
+          for (const p of lobby.players.values()) {
+            p.socket.send(updateMsg);
+          }
+
+          // Full state sync for safety
+          this.broadcastGameState(lobby);
         }
       }
       return;

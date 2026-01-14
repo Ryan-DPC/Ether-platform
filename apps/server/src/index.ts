@@ -37,6 +37,7 @@ const app = new Elysia()
   .ws('/', {
     async open(ws: any) {
       try {
+        (ws as any).id = crypto.randomUUID();
         // console.log('WS Open - Data keys:', Object.keys((ws as any).data || {}));
         const query = (ws as any).data?.query;
         const headers = (ws as any).data?.headers;
