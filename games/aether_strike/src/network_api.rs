@@ -12,16 +12,28 @@ pub fn get_api_url() -> String {
              return format!("{}/api/lobby/multiplayer", trimmed);
         }
     }
-    "http://localhost:3000/api/lobby/multiplayer".to_string()
+    "https://vext-backend.onrender.com/api/lobby/multiplayer".to_string()
+}
+
+// Get WebSocket URL based on config
+pub fn get_ws_url() -> String {
+    if let Ok(url) = fs::read_to_string("server_config.txt") {
+        let trimmed = url.trim().to_string();
+        if !trimmed.is_empty() {
+             let ws_protocol = if trimmed.starts_with("https") { "wss" } else { "ws" };
+             let base = trimmed.replace("http://", "").replace("https://", "");
+             let base = base.trim_end_matches('/');
+             return format!("{}://{}/ws", ws_protocol, base);
+        }
+    }
+    "ws://vext-backend.onrender.com/ws".to_string()
 }
 
 // Auto-detect local IP (LAN)
 pub fn get_local_ip() -> String {
     // Try to bind a UDP socket and connect to external address
-    // This forces the OS to select the correct network interface
     match UdpSocket::bind("0.0.0.0:0") {
         Ok(socket) => {
-            // Connect to Google DNS (doesn't actually send data)
             if socket.connect("8.8.8.8:80").is_ok() {
                 if let Ok(addr) = socket.local_addr() {
                     let ip = addr.ip().to_string();
@@ -34,13 +46,12 @@ pub fn get_local_ip() -> String {
             println!("⚠️ Failed to detect IP: {}", e);
         }
     }
-    
-    println!("⚠️ Using fallback IP: 127.0.0.1 (won't work for multiplayer!)");
     "127.0.0.1".to_string()
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MultiplayerLobby {
-    #[serde(default)] // ID généré par le serveur
+    #[serde(default)]
     pub id: String,
     pub hostUsername: String,
     pub name: String,
@@ -55,7 +66,6 @@ pub struct MultiplayerLobby {
 
 pub fn fetch_server_list() -> Vec<MultiplayerLobby> {
     let api_url = get_api_url();
-    println!("Fetching server list from {}...", api_url);
     let client = Client::new();
     let res = client.get(format!("{}/list", api_url)).send();
 
@@ -63,39 +73,27 @@ pub fn fetch_server_list() -> Vec<MultiplayerLobby> {
         Ok(response) => {
             if response.status().is_success() {
                 match response.json::<Vec<MultiplayerLobby>>() {
-                    Ok(list) => {
-                        println!("Found {} servers.", list.len());
-                        list
-                    },
-                    Err(e) => {
-                        println!("❌ Error parsing server list: {}", e);
-                        Vec::new()
-                    }
+                    Ok(list) => list,
+                    Err(_) => Vec::new()
                 }
             } else {
-                println!("❌ Backend returned status: {}", response.status());
                 Vec::new()
             }
         },
-        Err(e) => {
-            println!("❌ Network connection error: {}", e);
-            Vec::new()
-        }
+        Err(_) => Vec::new()
     }
 }
 
 pub fn announce_server(name: &str, username: &str, max_players: u32, is_private: bool, password: Option<String>) -> Option<String> {
     let client = Client::new();
-    
-    // Auto-detect local IP
     let local_ip = get_local_ip();
     
     let lobby = MultiplayerLobby {
-        id: "".to_string(), // Server will generate
+        id: "".to_string(),
         hostUsername: username.to_string(),
         name: name.to_string(),
-        ip: local_ip, // Auto-detected LAN IP
-        port: 8080, // Port du jeu (pas encore utilisé vraiment)
+        ip: local_ip,
+        port: 8080,
         maxPlayers: max_players,
         currentPlayers: 1,
         isPrivate: is_private,
@@ -103,7 +101,6 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
         mapName: "TheNexus".to_string(),
     };
 
-    println!("Announcing server: {}", name);
     let api_url = get_api_url();
     let res = client.post(format!("{}/announce", api_url))
         .json(&lobby)
@@ -112,18 +109,11 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
     match res {
         Ok(response) => {
             if response.status().is_success() {
-                // Le serveur retourne { id: "...", ... }
-                // On pourrait parser pour choper l'ID
-                println!("✅ Server announced successfully!");
                 Some("registered".to_string()) 
             } else {
-                println!("❌ Failed to announce server: {}", response.status());
                 None
             }
         },
-        Err(e) => {
-            println!("❌ Network error announcing server: {}", e);
-            None
-        }
+        Err(_) => None
     }
 }

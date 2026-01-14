@@ -285,7 +285,7 @@ async fn main() {
                             
                             // Connecter au relay WebSocket
                             let lobby_id = session.session.name.clone(); // Utilise le nom comme ID pour l'instant
-                            let ws_url = "wss://vext-backend.onrender.com/ws";
+                            let ws_url = network_api::get_ws_url();
                             
                             match GameClient::connect(
                                 ws_url,
@@ -403,7 +403,7 @@ async fn main() {
 
                         // Connect to Relay (WS)
                         let lobby_id = server_name_input.clone();
-                        let ws_url = "wss://vext-backend.onrender.com/ws";
+                        let ws_url = network_api::get_ws_url();
                         
                         match GameClient::connect(
                             ws_url,

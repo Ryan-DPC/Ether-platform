@@ -78,8 +78,10 @@ impl GameClient {
         let (tx_to_ws, rx_in_ws) = channel::<WsCommand>();
         let (tx_from_ws, rx_from_ws) = channel::<GameEvent>();
 
-        // Construire l'URL avec le token
-        let full_url = format!("{}?token={}", ws_url, token);
+        // Construire l'URL avec le token (encodé correctement)
+        let mut url_parsed = Url::parse(ws_url).map_err(|e| format!("Invalid URL: {}", e))?;
+        url_parsed.query_pairs_mut().append_pair("token", token);
+        let full_url = url_parsed.to_string();
         
         println!("🔌 Connecting to relay server: {}", ws_url);
 
