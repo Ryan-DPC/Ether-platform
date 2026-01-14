@@ -71,6 +71,11 @@ jobs:
           # Copier l'exécutable
           Copy-Item "target/release/${{ env.GAME_NAME }}.exe" -Destination "dist/"
           
+          # Copier les assets
+          if (Test-Path "assets") {
+              Copy-Item -Path "assets" -Destination "dist/assets" -Recurse
+          }
+          
           # Créer le fichier de métadonnées pour VEXT
           $short_sha = "${{ github.sha }}".Substring(0, 7)
           $metadata = @{
