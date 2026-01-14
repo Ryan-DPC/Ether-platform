@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use macroquad::prelude::*;
+use crate::ui::hud::HUD;
 use std::collections::HashMap;
 
 mod game;
@@ -657,7 +658,7 @@ async fn main() {
 
                 // --- DRAW HUD ---
                 if let Some(gs) = &_game_state {
-                    let class_name = if let Some(cls) = selected_class { cls.name() } else { "Unknown" };
+                    let class_name = if let Some(cls) = &selected_class { cls.name() } else { "Unknown" };
                     HUD::draw(
                         gs, 
                         SCREEN_WIDTH, 

@@ -9,15 +9,21 @@ pub struct Resources {
     pub mana: u32,
     pub max_mana: u32,
     pub mana_regen: f32, // Mana par seconde
+    pub current_hp: f32,
+    pub max_hp: f32,
+    pub hp_regen: f32,
 }
 
 impl Resources {
-    pub fn new(max_mana: u32) -> Self {
+    pub fn new(max_mana: u32, max_hp: f32) -> Self {
         Resources {
             gold: 0,
             mana: max_mana,
             max_mana,
             mana_regen: 5.0,
+            current_hp: max_hp,
+            max_hp,
+            hp_regen: 1.0,
         }
     }
 
@@ -25,6 +31,9 @@ impl Resources {
         // Régénération de mana (base + bonus des passifs)
         let total_regen = self.mana_regen + bonus_regen;
         self.mana = (self.mana as f32 + total_regen * delta_time).min(self.max_mana as f32) as u32;
+        
+        // Régénération HP
+        self.current_hp = (self.current_hp + self.hp_regen * delta_time).min(self.max_hp);
     }
 
     pub fn can_afford_mana(&self, cost: u32) -> bool {
@@ -70,9 +79,10 @@ impl GameState {
     pub fn new(player_class: PlayerClass) -> Self {
         let passives = Passive::get_for_class(player_class);
         let max_mana = player_class.base_mana();
+        let max_hp = player_class.base_hp();
         
         GameState {
-            resources: Resources::new(max_mana),
+            resources: Resources::new(max_mana, max_hp),
             inventory: Inventory::new(),
             player_class,
             active_passives: passives,
