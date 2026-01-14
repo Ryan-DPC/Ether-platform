@@ -9,7 +9,7 @@ pub enum PlayerClass {
 }
 
 impl PlayerClass {
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'static str {
         match self {
             PlayerClass::Warrior => "Warrior",
             PlayerClass::Mage => "Mage",

@@ -126,13 +126,13 @@ async fn main() {
     let mut game_client: Option<GameClient> = None;
     let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
     let mut is_host = false;
-    let mut lobby_host_id = String::new();
+    let mut _lobby_host_id = String::new();
     let vext_token = _vext_token.clone(); // Garde le token pour l'auth WebSocket
     
     // Dialogue de mot de passe
     let mut show_password_dialog = false;
     let mut join_password_input = String::new();
-    let mut join_password_active = true;
+    let join_password_active = true;
     let mut selected_session: Option<usize> = None;
     
     // Variables pour le jeu
@@ -494,7 +494,7 @@ async fn main() {
                                         other_players.insert(p.userId.clone(), p);
                                     }
                                 }
-                                lobby_host_id = host_id;
+                                _lobby_host_id = host_id;
                             }
                             GameEvent::PlayerJoined { player_id, username, class } => {
                                 let msg = format!("{} joined!", username);
@@ -549,7 +549,7 @@ async fn main() {
                                 let msg = format!("New host: {}", host_id);
                                 println!("👑 {}", msg);
                                 last_network_log = msg;
-                                lobby_host_id = host_id;
+                                _lobby_host_id = host_id;
                             }
                             GameEvent::Error(e) => {
                                 last_network_log = format!("Error: {}", e);
