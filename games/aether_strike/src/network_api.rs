@@ -7,7 +7,14 @@ use std::net::UdpSocket;
 // Default to localhost, but try to read from config file
 pub fn get_api_url() -> String {
     if let Ok(url) = fs::read_to_string("server_config.txt") {
-        let trimmed = url.trim().to_string();
+        let mut trimmed = url.trim().to_string();
+        if trimmed.ends_with("/api") {
+            trimmed = trimmed.replace("/api", "");
+        }
+        if trimmed.ends_with('/') {
+            trimmed.pop(); 
+        }
+
         if !trimmed.is_empty() {
              return format!("{}/api/lobby/multiplayer", trimmed);
         }
@@ -18,7 +25,12 @@ pub fn get_api_url() -> String {
 // Get WebSocket URL based on config
 pub fn get_ws_url() -> String {
     if let Ok(url) = fs::read_to_string("server_config.txt") {
-        let trimmed = url.trim().to_string();
+        let mut trimmed = url.trim().to_string();
+        // Remove /api if present to get base URL
+        if trimmed.ends_with("/api") {
+            trimmed = trimmed.replace("/api", "");
+        }
+        
         if !trimmed.is_empty() {
              let ws_protocol = if trimmed.starts_with("https") { "wss" } else { "ws" };
              let base = trimmed.replace("http://", "").replace("https://", "");
