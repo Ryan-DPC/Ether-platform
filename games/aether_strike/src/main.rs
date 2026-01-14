@@ -272,40 +272,39 @@ async fn main() {
                         // Solo mode setup
                         is_solo_mode = true;
                         
-                        // Reposition Player (Center Forward)
+                        // Reposition Player (Forward)
                         if let Some(p) = &mut _player {
-                            p.position = vec2(360.0, 300.0); // Reculé et Monté (X: 400->360, Y: 320->300)
+                            p.position = vec2(420.0, 300.0); // Avancé pour laisser place aux gros sprites derrière
                         }
                         
-                        // Create Mock Teammates
+                        // Create Mock Teammates (Big Sprites 140x140)
                         _teammates.clear();
                         // 1. DarkKnight (Top Back)
-                        let mut t1 = StickFigure::new(vec2(280.0, 200.0)); // Reculé et Monté (X: 320->280, Y: 220->200)
+                        let mut t1 = StickFigure::new(vec2(280.0, 180.0)); // Reculé, Monté
                         t1.color = Color::from_rgba(200, 50, 50, 255); 
                         _teammates.push(t1);
                         // 2. Elara (Middle Far Back)
-                        let mut t2 = StickFigure::new(vec2(200.0, 380.0)); // Reculé et Baissé (X: 250->200, Y: 320->380)
+                        let mut t2 = StickFigure::new(vec2(180.0, 360.0)); // Très reculé, Centré verticalement
                         t2.color = Color::from_rgba(50, 100, 200, 255); 
                         _teammates.push(t2);
                         // 3. SwiftArrow (Bottom Back)
-                        let mut t3 = StickFigure::new(vec2(280.0, 400.0)); // Symétrique à T1/Joueur (X: 320->280, Y: 420->400)
+                        let mut t3 = StickFigure::new(vec2(280.0, 440.0)); // Reculé, Baissé
                         t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
-                        // Create Mock Enemies (Axial Symmetry)
-                        // Screen Width ~1280. Symmetry around 640.
-                        // Player (360) -> Boss (1280 - 360 = 920)
-                        // T1 (280, 200) -> M1 (1280 - 280 = 1000, 200)
-                        // T2 (200, 380) -> M2 (1280 - 200 = 1080, 380)
-                        // T3 (280, 400) -> M3 (1280 - 280 = 1000, 400)
+                        // Create Mock Enemies (Axial Symmetry 1280)
+                        // Player (420) -> Boss (860)
+                        // T1 (280, 180) -> M1 (1000, 180)
+                        // T2 (180, 360) -> M2 (1100, 360)
+                        // T3 (280, 440) -> M3 (1000, 440)
                         
                         _enemies.clear();
-                        // 1. Shadow Minion (Top Back)
-                        _enemies.push(Enemy::new(vec2(1000.0, 200.0)));
-                        // 2. Dark Spirit (Middle Far Back)
-                        _enemies.push(Enemy::new(vec2(1080.0, 380.0)));
-                        // 3. Void Crawler (Bottom Back)
-                        _enemies.push(Enemy::new(vec2(1000.0, 400.0)));
+                        // 1. Shadow Minion
+                        _enemies.push(Enemy::new(vec2(1000.0, 180.0)));
+                        // 2. Dark Spirit
+                        _enemies.push(Enemy::new(vec2(1100.0, 360.0)));
+                        // 3. Void Crawler
+                        _enemies.push(Enemy::new(vec2(1000.0, 440.0)));
                         
                         is_player_turn = true;
                         enemy_hp = 500.0;
@@ -313,7 +312,7 @@ async fn main() {
                         
                         // Initialize boss
                         if let Some(e) = &mut _enemy {
-                            e.position = vec2(920.0, 300.0); // Symétrique Player
+                            e.position = vec2(860.0, 300.0); // Symmetry Player
                             e.max_health = 500.0;
                             e.health = 500.0;
                             e.add_threat("teammate_0", 40.0); 
@@ -851,12 +850,12 @@ async fn main() {
                      // Draw centered
                      draw_texture_ex(
                         &assets.sprite_sheet,
-                        teammate.position.x - 50.0,
-                        teammate.position.y - 50.0,
+                        teammate.position.x - 70.0, // Centering 140/2
+                        teammate.position.y - 70.0, // Centering 140/2
                         WHITE,
                         DrawTextureParams {
                             source: Some(rect),
-                            dest_size: Some(vec2(100.0, 100.0)),
+                            dest_size: Some(vec2(140.0, 140.0)), // Same size as player
                             ..Default::default()
                         }
                      );

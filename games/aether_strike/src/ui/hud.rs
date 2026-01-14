@@ -161,8 +161,8 @@ impl HUD {
         // ============================================================
         // ============================================================
         let team_panel_w = 180.0; // Reduced width
-        // Calculate needed height: 10 (top) + 70 (player) + 15 (gap) + 3 * (45 + 15 gap) + 10 (bottom) = ~280
-        let team_panel_h = 280.0; 
+        // Calculate needed height: 10 (top) + 70 (player) + 15 (gap) + 3 * (45 + 15 gap) + 10 (bottom) = ~280 -> Increased to 300 for safety
+        let team_panel_h = 300.0; 
         
         draw_rectangle(0.0, 0.0, team_panel_w, team_panel_h, Color::from_rgba(15, 20, 30, 240));
         draw_line(team_panel_w, 0.0, team_panel_w, team_panel_h, 2.0, Color::from_rgba(60, 80, 120, 255));
