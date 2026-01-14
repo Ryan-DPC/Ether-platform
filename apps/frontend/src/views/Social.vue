@@ -1,3 +1,4 @@
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFriendsStore } from '../stores/friendsStore'
@@ -173,6 +174,7 @@ const openChat = (friendId: string) => {
               <div class="item-info">
                 <div class="item-name">{{ friend.username }}</div>
                 <div class="item-status">{{ friend.status }}</div>
+              </div>
               <div class="item-actions">
                 <button class="btn-icon" title="Message" @click.stop="openChat(friend.id)"><i class="fas fa-comment-alt"></i></button>
                 <button class="btn-icon" title="Invite"><i class="fas fa-gamepad"></i></button>
