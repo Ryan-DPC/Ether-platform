@@ -52,14 +52,17 @@ export const useFriendsStore = defineStore('friends', {
       try {
         // First, search for the user by username to get their ID
         const searchResponse = await axios.get(
-          `/users/search?query=${encodeURIComponent(username)}`
+          `/users/search?q=${encodeURIComponent(username)}`
         );
 
-        if (!searchResponse.data.users || searchResponse.data.users.length === 0) {
+        const data = searchResponse.data;
+        const users = Array.isArray(data) ? data : (data.users || []);
+
+        if (!users || users.length === 0) {
           throw new Error('Utilisateur introuvable');
         }
 
-        const targetUser = searchResponse.data.users[0];
+        const targetUser = users[0];
 
         // Then send friend request with the user ID
         const response = await axios.post('/friends/add', { friendId: targetUser.id });
