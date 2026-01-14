@@ -98,7 +98,7 @@ pub fn announce_server(name: &str, username: &str, max_players: u32, is_private:
         port: 8080, // Port du jeu (pas encore utilisé vraiment)
         maxPlayers: max_players,
         currentPlayers: 1,
-        isPrivate,
+        isPrivate: is_private,
         password,
         mapName: "TheNexus".to_string(),
     };

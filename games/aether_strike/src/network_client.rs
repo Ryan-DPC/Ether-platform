@@ -17,9 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
-use tungstenite::{connect, Message, WebSocket};
-use tungstenite::stream::MaybeTlsStream;
-use std::net::TcpStream;
+use tungstenite::{connect, Message};
 use url::Url;
 
 // Messages envoyés par le serveur
@@ -146,13 +144,6 @@ fn ws_thread_loop(
         .map_err(|e| format!("Failed to join game: {}", e))?;
 
     println!("🎮 Joined game: {}", game_id);
-
-    // Configurer le socket en non-bloquant
-    if let Some(stream) = socket.get_ref() {
-        if let MaybeTlsStream::Plain(tcp) = stream {
-            tcp.set_nonblocking(true).ok();
-        }
-    }
 
     // Boucle principale
     loop {
