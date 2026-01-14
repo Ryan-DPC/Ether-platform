@@ -643,6 +643,7 @@ async fn main() {
                         selected_class = Some(*cls);
                         // Send update to server
                         if let Some(client) = &game_client {
+                            println!("📤 Sending class change: {}", cls.name().to_lowercase());
                             client.send_class_change(cls.name().to_lowercase());
                         }
                     }

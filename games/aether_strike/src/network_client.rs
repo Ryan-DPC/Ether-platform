@@ -368,6 +368,7 @@ fn ws_thread_loop(
                                         })
                                     }
                                     "aether-strike:player-updated" => {
+                                        println!("📥 Received player-updated: {:?}", data);
                                         Some(GameEvent::PlayerUpdated {
                                             player_id: data["playerId"].as_str().unwrap_or("").to_string(),
                                             class: data["class"].as_str().unwrap_or("warrior").to_string(),

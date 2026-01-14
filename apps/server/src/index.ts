@@ -37,7 +37,8 @@ const app = new Elysia()
   .ws('/', {
     async open(ws: any) {
       try {
-        (ws as any).id = crypto.randomUUID();
+        // Note: ws.id assignment removed - was causing "readonly property" error in newer Bun/Elysia
+        // We now use ws object directly as Map key in aether-strike socket
         // console.log('WS Open - Data keys:', Object.keys((ws as any).data || {}));
         const query = (ws as any).data?.query;
         const headers = (ws as any).data?.headers;
