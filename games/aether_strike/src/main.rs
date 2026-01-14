@@ -19,7 +19,7 @@ use game::GameState;
 use entities::{StickFigure, Enemy};
 use class_system::PlayerClass;
 use menu_system::{GameScreen, PlayerProfile, MenuButton, ClassButton, GameSession, SessionButton};
-use menu_ui::{draw_main_menu, draw_play_menu, draw_character_creation, draw_session_list, draw_create_server, draw_password_dialog};
+use menu_ui::{draw_main_menu, draw_play_menu, draw_class_selection, draw_session_list, draw_create_server, draw_password_dialog};
 use assets::GameAssets;
 use network_client::{GameClient, GameEvent};
 
@@ -83,6 +83,13 @@ async fn main() {
         }
     }
 
+    // Extraire le nom de personnage (username sans discriminant)
+    let character_name_input = vext_username
+        .split('#')
+        .next()
+        .unwrap_or(&vext_username)
+        .to_string();
+    
     // Profil du joueur
     let mut player_profile = PlayerProfile::new(vext_username);
     
@@ -105,9 +112,6 @@ async fn main() {
     // Fallback if no friends passed (optional, or just leave empty)
     // player_profile.add_friend("MaxGamer42", true);
     
-    // Variables pour la création de personnage
-    let mut character_name_input = String::new();
-    let mut name_input_active = false;
     let mut selected_class: Option<PlayerClass> = None;
     
     // Variables pour le online
@@ -146,6 +150,12 @@ async fn main() {
     let mut enemy_hp = 500.0;
     let mut enemy_max_hp = 500.0;
     let mut combat_logs: Vec<String> = Vec::new();
+    
+    // Solo combat state
+    let mut is_solo_mode = false;
+    let mut is_player_turn = true;
+    let mut enemy_attack_timer = 0.0;
+    let mut last_enemy_action_time = 0.0;
 
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
@@ -226,14 +236,13 @@ async fn main() {
             }
 
             GameScreen::CharacterCreation => {
-                draw_character_creation(&class_buttons, mouse_pos, &character_name_input, name_input_active);
+                // Nom automatique depuis le username VEXT (sans discriminant)
+                let player_name = character_name_input.as_str();
+                let selected_class_name = selected_class.map(|c| c.name());
+                draw_class_selection(&class_buttons, mouse_pos, player_name, selected_class_name);
 
-                // Gestion de l'input du nom
+                // Sélection de classe
                 if is_mouse_button_pressed(MouseButton::Left) {
-                    let input_rect = Rect::new(100.0, 160.0, 600.0, 50.0);
-                    name_input_active = input_rect.contains(mouse_pos);
-
-                    // Sélection de classe
                     if class_buttons[0].is_clicked(mouse_pos) {
                         selected_class = Some(PlayerClass::Warrior);
                     } else if class_buttons[1].is_clicked(mouse_pos) {
@@ -242,8 +251,8 @@ async fn main() {
                         selected_class = Some(PlayerClass::Archer);
                     }
 
-                    // Bouton START GAME
-                    if confirm_button.is_clicked(mouse_pos) && selected_class.is_some() && !character_name_input.is_empty() {
+                    // Bouton START GAME (seulement si classe sélectionnée)
+                    if confirm_button.is_clicked(mouse_pos) && selected_class.is_some() {
                         let player_class = selected_class.unwrap();
                         player_profile.character_name = character_name_input.clone();
                         
@@ -256,27 +265,26 @@ async fn main() {
                         
                         _enemy = Some(Enemy::new(vec2(ENEMY_X, ENEMY_Y)));
                         
+                        // Solo mode setup
+                        is_solo_mode = true;
+                        is_player_turn = true;
+                        enemy_hp = 500.0;
+                        enemy_max_hp = 500.0;
+                        combat_logs.clear();
+                        combat_logs.push("Battle started!".to_string());
+                        
                         current_screen = GameScreen::InGame;
                     }
                 }
 
-                // Input clavier pour le nom
-                if name_input_active {
-                    handle_text_input(&mut character_name_input, 20);
-                    if is_key_pressed(KeyCode::Enter) {
-                        name_input_active = false;
-                    }
-                }
-
-                // Dessiner le bouton START GAME si prêt
-                if selected_class.is_some() && !character_name_input.is_empty() {
+                // Dessiner le bouton START GAME si classe sélectionnée
+                if selected_class.is_some() {
                     let is_hovered = confirm_button.is_clicked(mouse_pos);
                     confirm_button.draw(is_hovered);
                 }
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::PlayMenu;
-                    character_name_input.clear();
                     selected_class = None;
                 }
             }
@@ -825,49 +833,139 @@ async fn main() {
                 }
 
                 // --- DRAW HUD ---
-                if let Some(gs) = &_game_state {
+                if let Some(gs) = &mut _game_state {
                     let class_enum = selected_class.unwrap_or(PlayerClass::Warrior);
-                    let is_my_turn = current_turn_id == player_profile.vext_username;
+                    
+                    // Determine if it's player's turn
+                    let is_my_turn = if is_solo_mode {
+                        is_player_turn
+                    } else {
+                        current_turn_id == player_profile.vext_username
+                    };
+                    
                     let e_hp_percent = enemy_hp / enemy_max_hp;
 
                     if let Some(action) = HUD::draw(
                         gs, 
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
-                        &player_profile.vext_username,
+                        &character_name_input, // Use character name without discriminant
                         class_enum,
                         &other_players,
                         e_hp_percent,
                         is_my_turn,
                         &mut battle_ui_state
                     ) {
-                        if let Some(client) = &game_client {
+                        // Handle actions
+                        if is_solo_mode {
+                            // Solo mode: process locally
                             match action {
                                 crate::ui::hud::HUDAction::UseAttack(name) => {
-                                    client.use_attack(name, Some("enemy".to_string()));
+                                    // Find attack damage
+                                    let attacks = class_enum.get_attacks();
+                                    if let Some(atk) = attacks.iter().find(|a| a.name == name) {
+                                        if gs.resources.can_afford_mana(atk.mana_cost) {
+                                            // Spend mana
+                                            gs.resources.mana = gs.resources.mana.saturating_sub(atk.mana_cost);
+                                            
+                                            // Deal damage to enemy
+                                            let damage = atk.damage;
+                                            enemy_hp = (enemy_hp - damage).max(0.0);
+                                            
+                                            combat_logs.push(format!("You used {} for {:.0} damage!", name, damage));
+                                            
+                                            // Switch to enemy turn
+                                            is_player_turn = false;
+                                            enemy_attack_timer = get_time() + 1.5; // Enemy attacks after 1.5s
+                                            battle_ui_state = crate::ui::hud::BattleUIState::Main;
+                                        }
+                                    }
                                 }
                                 crate::ui::hud::HUDAction::Flee => {
-                                    client.flee();
+                                    combat_logs.push("You fled from battle!".to_string());
+                                    current_screen = GameScreen::MainMenu;
+                                    is_solo_mode = false;
                                 }
                                 crate::ui::hud::HUDAction::EndTurn => {
-                                    client.end_turn();
+                                    is_player_turn = false;
+                                    enemy_attack_timer = get_time() + 1.0;
+                                }
+                            }
+                        } else {
+                            // Multiplayer mode: send to server
+                            if let Some(client) = &game_client {
+                                match action {
+                                    crate::ui::hud::HUDAction::UseAttack(name) => {
+                                        client.use_attack(name, Some("enemy".to_string()));
+                                    }
+                                    crate::ui::hud::HUDAction::Flee => {
+                                        client.flee();
+                                    }
+                                    crate::ui::hud::HUDAction::EndTurn => {
+                                        client.end_turn();
+                                    }
                                 }
                             }
                         }
                     }
+                    
+                    // === SOLO MODE: ENEMY AI ===
+                    if is_solo_mode && !is_player_turn && get_time() > enemy_attack_timer {
+                        // Enemy attacks player
+                        let enemy_attacks = vec![
+                            ("Slash", 25.0),
+                            ("Heavy Strike", 40.0),
+                            ("Dark Pulse", 35.0),
+                        ];
+                        
+                        // Random attack
+                        let attack_idx = (get_time() * 1000.0) as usize % enemy_attacks.len();
+                        let (attack_name, base_damage) = enemy_attacks[attack_idx];
+                        
+                        // Apply damage to player
+                        let damage = base_damage;
+                        gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                        
+                        combat_logs.push(format!("Enemy used {} for {:.0} damage!", attack_name, damage));
+                        
+                        // Check if player died
+                        if gs.resources.current_hp <= 0.0 {
+                            combat_logs.push("You have been defeated!".to_string());
+                            // Could transition to game over screen
+                        }
+                        
+                        // Check if enemy died
+                        if enemy_hp <= 0.0 {
+                            combat_logs.push("Victory! Enemy defeated!".to_string());
+                            gs.resources.gold += 100;
+                        }
+                        
+                        // Switch back to player turn
+                        is_player_turn = true;
+                    }
                 }
 
                 // --- DRAW COMBAT LOGS ---
-                draw_rectangle(10.0, 150.0, 250.0, 200.0, Color::from_rgba(0, 0, 0, 100));
-                for (i, log) in combat_logs.iter().rev().take(10).enumerate() {
-                    draw_text(log, 20.0, 330.0 - (i as f32 * 20.0), 16.0, WHITE);
+                let log_x = 10.0;
+                let log_y = 120.0;
+                let log_w = 280.0;
+                let log_h = 180.0;
+                
+                draw_rectangle(log_x, log_y, log_w, log_h, Color::from_rgba(10, 10, 15, 200));
+                draw_rectangle_lines(log_x, log_y, log_w, log_h, 1.0, Color::from_rgba(60, 60, 80, 255));
+                draw_text("Combat Log", log_x + 10.0, log_y + 18.0, 14.0, GOLD);
+                draw_line(log_x + 5.0, log_y + 25.0, log_x + log_w - 5.0, log_y + 25.0, 1.0, Color::from_rgba(60, 60, 80, 255));
+                
+                for (i, log) in combat_logs.iter().rev().take(8).enumerate() {
+                    let text_y = log_y + 45.0 + (i as f32 * 18.0);
+                    if text_y < log_y + log_h - 10.0 {
+                        draw_text(log, log_x + 10.0, text_y, 13.0, LIGHTGRAY);
+                    }
                 }
-
-                // Texte de debug ou chat log (partie du HUD maintenant)
-                // draw_text(&text, 20.0, 40.0, 30.0, WHITE); 
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::MainMenu;
+                    is_solo_mode = false;
                     // Properly disconnect from server
                     if let Some(client) = &game_client {
                         client.disconnect();

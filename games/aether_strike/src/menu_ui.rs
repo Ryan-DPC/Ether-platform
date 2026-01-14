@@ -123,18 +123,18 @@ pub fn draw_play_menu(buttons: &[MenuButton], mouse_pos: Vec2) {
     );
 }
 
-/// Dessiner la création de personnage
-pub fn draw_character_creation(
+/// Dessiner la sélection de classe (nom automatique depuis VEXT)
+pub fn draw_class_selection(
     class_buttons: &[ClassButton],
     mouse_pos: Vec2,
-    character_name: &str,
-    name_input_active: bool,
+    player_name: &str,
+    selected_class: Option<&str>,
 ) {
     // Background
     clear_background(Color::from_rgba(20, 20, 40, 255));
 
     // Titre
-    let title = "CREATE YOUR CHARACTER";
+    let title = "SELECT YOUR CLASS";
     let title_size = 50.0;
     let title_dims = measure_text(title, None, title_size as u16, 1.0);
     draw_text(
@@ -145,68 +145,23 @@ pub fn draw_character_creation(
         GOLD,
     );
 
-    // Champ de nom
-    draw_text("Character Name:", 100.0, 150.0, 24.0, WHITE);
-    
-    let input_rect = Rect::new(100.0, 160.0, 600.0, 50.0);
-    draw_rectangle(
-        input_rect.x,
-        input_rect.y,
-        input_rect.w,
-        input_rect.h,
-        Color::from_rgba(40, 40, 60, 255),
-    );
-    draw_rectangle_lines(
-        input_rect.x,
-        input_rect.y,
-        input_rect.w,
-        input_rect.h,
-        2.0,
-        if name_input_active { GOLD } else { WHITE },
-    );
-
-    // Afficher le nom avec curseur si actif
-    let display_name = if name_input_active && character_name.is_empty() {
-        "Type your name..."
-    } else {
-        character_name
-    };
-    
-    let text_color = if character_name.is_empty() && !name_input_active {
-        DARKGRAY
-    } else {
-        WHITE
-    };
-
-    draw_text(
-        display_name,
-        input_rect.x + 10.0,
-        input_rect.y + 35.0,
-        28.0,
-        text_color,
-    );
-
-    // Curseur clignotant
-    if name_input_active {
-        let cursor_x = input_rect.x + 10.0 + measure_text(character_name, None, 28, 1.0).width;
-        let time = get_time();
-        if (time * 2.0) as i32 % 2 == 0 {
-            draw_line(cursor_x, input_rect.y + 10.0, cursor_x, input_rect.y + 40.0, 2.0, WHITE);
-        }
-    }
+    // Afficher le nom du joueur (non modifiable)
+    draw_text("Playing as:", 100.0, 140.0, 20.0, LIGHTGRAY);
+    draw_text(player_name, 100.0, 170.0, 32.0, GOLD);
 
     // Titre des classes
-    draw_text("Choose Your Class:", 100.0, 250.0, 28.0, WHITE);
+    draw_text("Choose Your Class:", 100.0, 230.0, 28.0, WHITE);
 
     // Boutons de classe
     for button in class_buttons {
         let is_hovered = button.is_clicked(mouse_pos);
-        button.draw(is_hovered);
+        let is_selected = selected_class.map_or(false, |s| button.label.contains(s));
+        button.draw_with_selection(is_hovered, is_selected);
     }
 
     // Instructions
     draw_text(
-        "Click on the name field to type | Press ENTER to confirm | Press ESC to go back",
+        "Click a class to select | Press ESC to go back",
         20.0,
         screen_height() - 20.0,
         18.0,

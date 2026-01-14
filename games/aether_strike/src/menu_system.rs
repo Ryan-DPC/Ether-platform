@@ -143,6 +143,7 @@ impl MenuButton {
 
 /// Bouton de classe
 pub struct ClassButton {
+    pub label: String,
     pub class_name: String,
     pub description: String,
     pub rect: Rect,
@@ -152,6 +153,7 @@ pub struct ClassButton {
 impl ClassButton {
     pub fn new(class_name: &str, description: &str, x: f32, y: f32, width: f32, height: f32, color: Color) -> Self {
         ClassButton {
+            label: class_name.to_string(),
             class_name: class_name.to_string(),
             description: description.to_string(),
             rect: Rect::new(x, y, width, height),
@@ -160,7 +162,11 @@ impl ClassButton {
     }
 
     pub fn draw(&self, is_hovered: bool) {
-        let alpha = if is_hovered { 255 } else { 200 };
+        self.draw_with_selection(is_hovered, false);
+    }
+
+    pub fn draw_with_selection(&self, is_hovered: bool, is_selected: bool) {
+        let alpha = if is_hovered || is_selected { 255 } else { 200 };
         let color = Color::new(self.color.r, self.color.g, self.color.b, alpha as f32 / 255.0);
 
         // Ombre
@@ -175,15 +181,28 @@ impl ClassButton {
         // Fond
         draw_rectangle(self.rect.x, self.rect.y, self.rect.w, self.rect.h, color);
 
-        // Bordure
+        // Bordure (or si sélectionné ou hover)
+        let border_color = if is_selected {
+            GOLD
+        } else if is_hovered {
+            WHITE
+        } else {
+            Color::from_rgba(100, 100, 100, 255)
+        };
+        let border_width = if is_selected { 5.0 } else { 4.0 };
         draw_rectangle_lines(
             self.rect.x,
             self.rect.y,
             self.rect.w,
             self.rect.h,
-            4.0,
-            if is_hovered { GOLD } else { WHITE },
+            border_width,
+            border_color,
         );
+
+        // Checkmark si sélectionné
+        if is_selected {
+            draw_text("✓", self.rect.x + self.rect.w - 35.0, self.rect.y + 35.0, 30.0, GREEN);
+        }
 
         // Nom de la classe
         let text_size = 28.0;
