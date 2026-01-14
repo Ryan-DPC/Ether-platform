@@ -123,7 +123,9 @@ async fn main() {
     
     // Network multiplayer relay
     let mut game_client: Option<GameClient> = None;
-    let mut other_players: HashMap<String, (f32, f32)> = HashMap::new();
+    let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
+    let mut is_host = false;
+    let mut lobby_host_id = String::new();
     let vext_token = _vext_token.clone(); // Garde le token pour l'auth WebSocket
     
     // Dialogue de mot de passe
@@ -289,10 +291,12 @@ async fn main() {
                                 ws_url,
                                 &vext_token,
                                 lobby_id.clone(),
-                                selected_class.unwrap_or(PlayerClass::Warrior).name().to_string()
+                                selected_class.unwrap_or(PlayerClass::Warrior).name().to_string(),
+                                false // is_host = false
                             ) {
                                 Ok(client) => {
                                     game_client = Some(client);
+                                    is_host = false;
                                     println!("✅ Connected to relay server!");
                                     println!("✅ Joined lobby: {}", lobby_id);
                                     current_screen = GameScreen::Lobby;
@@ -388,7 +392,7 @@ async fn main() {
 
                     // Bouton CREATE
                     if confirm_create_button.is_clicked(mouse_pos) && !server_name_input.is_empty() {
-                        // Announce to Backend
+                        // Announce to Backend (METADATA)
                         network_api::announce_server(
                             &server_name_input, 
                             &player_profile.vext_username,
@@ -397,7 +401,28 @@ async fn main() {
                             if is_private_server && !server_password_input.is_empty() { Some(server_password_input.clone()) } else { None }
                         );
 
-                        // Créer le serveur localement (en attendant mieux)
+                        // Connect to Relay (WS)
+                        let lobby_id = server_name_input.clone();
+                        let ws_url = "wss://vext-backend.onrender.com/ws";
+                        
+                        match GameClient::connect(
+                            ws_url,
+                            &vext_token,
+                            lobby_id.clone(),
+                            selected_class.unwrap_or(PlayerClass::Warrior).name().to_string(),
+                            true // is_host = true
+                        ) {
+                            Ok(client) => {
+                                game_client = Some(client);
+                                is_host = true;
+                                println!("✅ Server created and connected to relay: {}", lobby_id);
+                            }
+                            Err(e) => {
+                                eprintln!("❌ Failed to connect relay: {}", e);
+                            }
+                        }
+
+                        // Créer le serveur localement pour la liste
                         let new_session = GameSession::new(
                             &server_name_input,
                             &player_profile.vext_username,
@@ -410,7 +435,6 @@ async fn main() {
                             },
                         );
                         
-                        // Ajouter à la liste (optimiste, ou refresh)
                         let y_pos = 140.0 + sessions.len() as f32 * 70.0;
                         sessions.push(SessionButton::new(
                             new_session,
@@ -420,7 +444,6 @@ async fn main() {
                             60.0,
                         ));
 
-                        println!("Server created: {}", server_name_input);
                         selected_session = Some(sessions.len() - 1);
                         current_screen = GameScreen::Lobby;
                     }
@@ -458,17 +481,46 @@ async fn main() {
                 if let Some(client) = &game_client {
                     for event in client.poll_updates() {
                         match event {
+                            GameEvent::GameState { players, host_id } => {
+                                println!("📋 Received game state: {} players", players.len());
+                                other_players.clear();
+                                for p in players {
+                                    if p.username != player_profile.vext_username {
+                                        other_players.insert(p.userId.clone(), p);
+                                    }
+                                }
+                                lobby_host_id = host_id;
+                                // On peut vérifier si on est devenu host (ex: si host_id == notre ID)
+                                // Mais pour l'instant on garde le flag is_host local
+                            }
                             GameEvent::PlayerJoined { player_id, username } => {
                                 println!("👋 {} joined!", username);
-                                other_players.insert(player_id, (400.0, 300.0));
+                                // On l'ajoutera vraiment lors du premier update de position ou via un GameState refresh
+                                // Pour l'instant on mock une position pour l'afficher dans la liste
+                                other_players.insert(player_id.clone(), network_client::RemotePlayer {
+                                    userId: player_id,
+                                    username: username,
+                                    class: "warrior".to_string(),
+                                    position: (400.0, 300.0),
+                                });
                             }
                             GameEvent::PlayerLeft { player_id } => {
                                 println!("👋 Player {} left", &player_id[..6]);
                                 other_players.remove(&player_id);
                             }
+                            GameEvent::GameStarted => {
+                                println!("🚀 Game starting!");
+                                current_screen = GameScreen::InGame;
+                            }
+                            GameEvent::NewHost { host_id } => {
+                                println!("👑 New host: {}", host_id);
+                                lobby_host_id = host_id;
+                            }
                             GameEvent::PlayerUpdate(update) => {
                                 if let Some(pos) = update.position {
-                                    other_players.insert(update.player_id, pos);
+                                    if let Some(player) = other_players.get_mut(&update.player_id) {
+                                        player.position = pos;
+                                    }
                                 }
                             }
                             _ => {}
@@ -490,28 +542,35 @@ async fn main() {
                 // Other players (dynamically from relay)
                 let mut y = 230.0;
                 let mut i = 2;
-                for (id, _pos) in &other_players {
-                    draw_text(&format!("{}. Player {}", i, &id[..6]), 70.0, y, 24.0, WHITE);
+                for player in other_players.values() {
+                    draw_text(&format!("{}. {}", i, player.username), 70.0, y, 24.0, WHITE);
                     y += 40.0;
                     i += 1;
                 }
                 
                 // Empty slots
-                for j in i..=4 {
                     draw_text(&format!("{}. Waiting...", j), 70.0, y, 24.0, DARKGRAY);
                     y += 40.0;
                 }
 
-                // Start Button
-                let start_btn_rect = Rect::new(SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 150.0, 300.0, 80.0);
-                let is_hovered = start_btn_rect.contains(mouse_pos);
-                let btn_color = if is_hovered { GREEN } else { DARKGREEN };
-                
-                draw_rectangle(start_btn_rect.x, start_btn_rect.y, start_btn_rect.w, start_btn_rect.h, btn_color);
-                draw_text("START GAME", start_btn_rect.x + 30.0, start_btn_rect.y + 50.0, 40.0, WHITE);
-                
-                if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
-                     current_screen = GameScreen::InGame;
+                // Start Button (Only for Host)
+                if is_host {
+                    let start_btn_rect = Rect::new(SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 150.0, 300.0, 80.0);
+                    let is_hovered = start_btn_rect.contains(mouse_pos);
+                    let btn_color = if is_hovered { GREEN } else { DARKGREEN };
+                    
+                    draw_rectangle(start_btn_rect.x, start_btn_rect.y, start_btn_rect.w, start_btn_rect.h, btn_color);
+                    draw_text("START GAME", start_btn_rect.x + 30.0, start_btn_rect.y + 50.0, 40.0, WHITE);
+                    
+                    if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
+                         if let Some(client) = &game_client {
+                             client.start_game();
+                         }
+                         current_screen = GameScreen::InGame;
+                    }
+                } else {
+                    // Client view
+                    draw_text("WAITING FOR HOST TO START...", SCREEN_WIDTH - 450.0, SCREEN_HEIGHT - 100.0, 24.0, LIGHTGRAY);
                 }
 
                 if is_key_pressed(KeyCode::Escape) {
@@ -527,6 +586,30 @@ async fn main() {
 
             GameScreen::InGame => {
                 clear_background(Color::from_rgba(40, 40, 60, 255));
+                
+                // ===== RELAY MULTIPLAYER: Poll for updates in-game =====
+                if let Some(client) = &game_client {
+                    for event in client.poll_updates() {
+                        match event {
+                            GameEvent::PlayerUpdate(update) => {
+                                if let Some(player) = other_players.get_mut(&update.player_id) {
+                                    if let Some(pos) = update.position {
+                                        player.position = pos;
+                                    }
+                                }
+                            }
+                            GameEvent::PlayerLeft { player_id } => {
+                                other_players.remove(&player_id);
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Envoyer notre position (mock movement for now)
+                    if let Some(player) = &_player {
+                        client.send_input((player.pos.x, player.pos.y), (0.0, 0.0), "idle".to_string());
+                    }
+                }
                 
                 // Dessiner les entités
                 // Dessiner les entités
@@ -548,6 +631,27 @@ async fn main() {
                 
                 if let Some(enemy) = &mut _enemy {
                     enemy.draw(Some(&assets.sprite_sheet), Some(assets.get_enemy_rect(0)));
+                }
+
+                // Dessiner les autres joueurs
+                for player in other_players.values() {
+                    let rect = match player.class.as_str() {
+                        "mage" => assets.get_mage_rect(0),
+                        "archer" => assets.get_archer_rect(0),
+                        _ => assets.get_warrior_rect(0),
+                    };
+                    draw_texture_ex(
+                        &assets.sprite_sheet,
+                        player.position.0,
+                        player.position.1,
+                        WHITE,
+                        DrawTextureParams {
+                            source: Some(rect),
+                            dest_size: Some(vec2(100.0, 100.0)),
+                            ..Default::default()
+                        },
+                    );
+                    draw_text(&player.username, player.position.0, player.position.1 - 10.0, 18.0, WHITE);
                 }
 
                 let text = if selected_class.is_some() {

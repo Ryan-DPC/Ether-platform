@@ -29,12 +29,22 @@ pub struct PlayerUpdate {
     pub action: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemotePlayer {
+    pub userId: String,
+    pub username: String,
+    pub class: String,
+    pub position: (f32, f32),
+}
+
 #[derive(Debug, Clone)]
 pub enum GameEvent {
     PlayerJoined { player_id: String, username: String },
     PlayerLeft { player_id: String },
     PlayerUpdate(PlayerUpdate),
+    GameState { players: Vec<RemotePlayer>, host_id: String },
     GameStarted,
+    NewHost { host_id: String },
     Error(String),
 }
 
@@ -50,6 +60,7 @@ pub struct GameClient {
 enum WsCommand {
     SendInput { position: (f32, f32), velocity: (f32, f32), action: String },
     SendAttack { target_pos: (f32, f32) },
+    StartGame,
     Disconnect,
 }
 
@@ -57,11 +68,12 @@ impl GameClient {
     /// Crée une connexion au serveur relay
     /// 
     /// # Arguments
-    /// * `ws_url` - URL du WebSocket (ex: "wss://vext-backend.onrender.com/ws")
-    /// * `token` - Token JWT d'authentification
-    /// * `game_id` - ID de la partie à rejoindre
-    /// * `player_class` - Classe du joueur (warrior, mage, etc.)
-    pub fn connect(ws_url: &str, token: &str, game_id: String, player_class: String) -> Result<Self, String> {
+    /// * `ws_url` - URL du WebSocket
+    /// * `token` - Token JWT
+    /// * `game_id` - ID de la partie
+    /// * `player_class` - Classe du joueur
+    /// * `is_host` - Si on crée la partie ou on la rejoint
+    pub fn connect(ws_url: &str, token: &str, game_id: String, player_class: String, is_host: bool) -> Result<Self, String> {
         // Channels bi-directionnels
         let (tx_to_ws, rx_in_ws) = channel::<WsCommand>();
         let (tx_from_ws, rx_from_ws) = channel::<GameEvent>();
@@ -77,7 +89,7 @@ impl GameClient {
 
         // Lancer le thread WebSocket
         thread::spawn(move || {
-            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, rx_in_ws, tx_from_ws) {
+            if let Err(e) = ws_thread_loop(full_url, game_id_clone, player_class_clone, is_host, rx_in_ws, tx_from_ws) {
                 eprintln!("❌ WebSocket thread error: {}", e);
             }
         });
@@ -96,6 +108,11 @@ impl GameClient {
     /// Envoie une attaque
     pub fn send_attack(&self, target_pos: (f32, f32)) {
         let _ = self.tx_to_ws.send(WsCommand::SendAttack { target_pos });
+    }
+
+    /// Démarre la partie (Hôte uniquement)
+    pub fn start_game(&self) {
+        let _ = self.tx_to_ws.send(WsCommand::StartGame);
     }
 
     /// Récupère tous les événements disponibles (non-bloquant)
@@ -121,6 +138,7 @@ fn ws_thread_loop(
     url: String,
     game_id: String,
     player_class: String,
+    is_host: bool,
     rx_commands: Receiver<WsCommand>,
     tx_events: Sender<GameEvent>,
 ) -> Result<(), String> {
@@ -131,19 +149,21 @@ fn ws_thread_loop(
 
     println!("✅ WebSocket connected");
 
-    // Rejoindre la partie
+    // Rejoindre ou Créer la partie
+    let join_type = if is_host { "aether-strike:create-game" } else { "aether-strike:join-game" };
     let join_msg = serde_json::json!({
-        "type": "aether-strike:join-game",
+        "type": join_type,
         "data": {
             "gameId": game_id,
-            "playerClass": player_class
+            "playerClass": player_class,
+            "maxPlayers": 4
         }
     });
     
     socket.send(Message::Text(join_msg.to_string()))
-        .map_err(|e| format!("Failed to join game: {}", e))?;
+        .map_err(|e| format!("Failed to initiate game: {}", e))?;
 
-    println!("🎮 Joined game: {}", game_id);
+    println!("🎮 {} game: {}", if is_host { "Created" } else { "Joined" }, game_id);
 
     // Boucle principale
     loop {
@@ -158,6 +178,13 @@ fn ws_thread_loop(
                             "velocity": [velocity.0, velocity.1],
                             "action": action
                         }
+                    });
+                    let _ = socket.send(Message::Text(msg.to_string()));
+                }
+                WsCommand::StartGame => {
+                    let msg = serde_json::json!({
+                        "type": "aether-strike:start-game",
+                        "data": {}
                     });
                     let _ = socket.send(Message::Text(msg.to_string()));
                 }
@@ -194,6 +221,31 @@ fn ws_thread_loop(
                                     Some(GameEvent::PlayerJoined {
                                         player_id: data["playerId"].as_str().unwrap_or("").to_string(),
                                         username: data["username"].as_str().unwrap_or("Unknown").to_string(),
+                                    })
+                                }
+                                "aether-strike:game-state" => {
+                                    let mut players = Vec::new();
+                                    if let Some(players_val) = data["players"].as_array() {
+                                        for p in players_val {
+                                            players.push(RemotePlayer {
+                                                userId: p["userId"].as_str().unwrap_or("").to_string(),
+                                                username: p["username"].as_str().unwrap_or("Unknown").to_string(),
+                                                class: p["class"].as_str().unwrap_or("warrior").to_string(),
+                                                position: (
+                                                    p["position"]["x"].as_f64().unwrap_or(0.0) as f32,
+                                                    p["position"]["y"].as_f64().unwrap_or(0.0) as f32,
+                                                ),
+                                            });
+                                        }
+                                    }
+                                    Some(GameEvent::GameState {
+                                        players,
+                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
+                                    })
+                                }
+                                "aether-strike:new-host" => {
+                                    Some(GameEvent::NewHost {
+                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
                                     })
                                 }
                                 "aether-strike:player-left" => {
