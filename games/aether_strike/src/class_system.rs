@@ -40,6 +40,63 @@ impl PlayerClass {
             PlayerClass::Archer => Color::from_rgba(50, 200, 100, 255),
         }
     }
+    pub fn get_attacks(&self) -> Vec<Attack> {
+        match self {
+            PlayerClass::Warrior => vec![
+                Attack::new("Slash", 0, 10.0),
+                Attack::new("Bash", 5, 15.0),
+                Attack::new("Strike", 10, 20.0),
+                Attack::new("Cleave", 15, 25.0),
+                Attack::new("Smash", 20, 30.0),
+                Attack::new("Execute", 30, 50.0),
+                Attack::new("Rage", 0, 5.0),
+                Attack::new("Guard Break", 10, 15.0),
+                Attack::new("Whirlwind", 40, 40.0),
+                Attack::new("Heroic Strike", 50, 60.0),
+            ],
+            PlayerClass::Mage => vec![
+                Attack::new("Firebolt", 5, 12.0),
+                Attack::new("Ice Shard", 8, 15.0),
+                Attack::new("Thunder", 15, 25.0),
+                Attack::new("Arcane Blast", 20, 30.0),
+                Attack::new("Fireball", 30, 45.0),
+                Attack::new("Blizzard", 40, 40.0),
+                Attack::new("Void Ray", 50, 60.0),
+                Attack::new("Meteor", 60, 80.0),
+                Attack::new("Zap", 0, 5.0),
+                Attack::new("Mana Burn", 10, 10.0),
+            ],
+            PlayerClass::Archer => vec![
+                Attack::new("Shoot", 0, 10.0),
+                Attack::new("Quick Shot", 5, 15.0),
+                Attack::new("Power Shot", 10, 25.0),
+                Attack::new("Volley", 20, 30.0),
+                Attack::new("Snipe", 30, 50.0),
+                Attack::new("Piercing Arrow", 15, 20.0),
+                Attack::new("Explosive Arrow", 25, 35.0),
+                Attack::new("Rain of Arrows", 40, 45.0),
+                Attack::new("Poison Shot", 10, 5.0), // DOT logic separate
+                Attack::new("Headshot", 50, 70.0),
+            ],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Attack {
+    pub name: String,
+    pub mana_cost: u32,
+    pub damage: f32,
+}
+
+impl Attack {
+    pub fn new(name: &str, mana_cost: u32, damage: f32) -> Self {
+        Attack {
+            name: name.to_string(),
+            mana_cost,
+            damage,
+        }
+    }
 }
 
 /// Type de passif

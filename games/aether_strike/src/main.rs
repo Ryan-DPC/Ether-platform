@@ -141,6 +141,7 @@ async fn main() {
     let mut _player: Option<StickFigure> = None;
     let mut _enemy: Option<Enemy> = None;
     let mut last_network_log = String::from("Ready");
+    let mut battle_ui_state = crate::ui::hud::BattleUIState::Main;
 
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
@@ -688,13 +689,17 @@ async fn main() {
 
                 // --- DRAW HUD ---
                 if let Some(gs) = &_game_state {
-                    let class_name = if let Some(cls) = &selected_class { cls.name() } else { "Unknown" };
+                    let class_enum = selected_class.unwrap_or(PlayerClass::Warrior);
+                    let class_name = class_enum.name();
+                    
                     HUD::draw(
                         gs, 
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
                         &player_profile.character_name,
-                        class_name
+                        class_name,
+                        class_enum,
+                        &mut battle_ui_state
                     );
                 }
 
