@@ -32,134 +32,70 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: 📦 Cache Cargo dependencies
-        uses: actions/cache@v3
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            games/aether_strike/target/
-          key: ${{ runner.os }}-cargo-aether-${{ hashFiles('games/aether_strike/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-aether-
-
+          workspaces: games/aether_strike
+          
       - name: 🔨 Build Aether Strike (Release)
         working-directory: ${{ env.GAME_PATH }}
         run: |
           cargo build --release --verbose
           echo "Build completed successfully!"
 
-      - name: 📊 Get build info
-        id: build_info
+      - name: 📦 Prepare Release & Metadata
+        id: prepare_release
         working-directory: ${{ env.GAME_PATH }}
         shell: powershell
         run: |
           $exe_path = "target/release/${{ env.GAME_NAME }}.exe"
           $file_size = (Get-Item $exe_path).Length / 1MB
-          echo "exe_size=$([math]::Round($file_size, 2)) MB" >> $env:GITHUB_OUTPUT
-          echo "build_date=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" >> $env:GITHUB_OUTPUT
-          echo "commit_sha=${{ github.sha }}" >> $env:GITHUB_OUTPUT
-
-      - name: 📁 Prepare game package for VEXT
-        working-directory: ${{ env.GAME_PATH }}
-        shell: powershell
-        run: |
-          # Créer le dossier de distribution
-          New-Item -ItemType Directory -Force -Path "dist"
+          $size_mb = [math]::Round($file_size, 2)
+          $build_date = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
           
-          # Copier l'exécutable
-          Copy-Item "target/release/${{ env.GAME_NAME }}.exe" -Destination "dist/"
+          # Set outputs
+          echo "exe_size=$size_mb MB" >> $env:GITHUB_OUTPUT
+          echo "build_date=$build_date" >> $env:GITHUB_OUTPUT
           
-          # Copier les assets
+          # Dist folder
+          New-Item -ItemType Directory -Force -Path "dist/assets" | Out-Null
+          Copy-Item $exe_path -Destination "dist/"
+          
+          # Assets
           if (Test-Path "assets") {
-              New-Item -ItemType Directory -Force -Path "dist/assets"
               Copy-Item -Path "assets/*" -Destination "dist/assets" -Recurse
-              
-              # Vérification critique
               if (-not (Test-Path "dist/assets/characters.png")) {
-                  Write-Error "❌ Critical: characters.png not found in dist/assets after copy!"
+                  Write-Error "❌ Critical: missing assets!"
                   exit 1
-              } else {
-                  echo "✅ Assets copied and verified."
               }
-          } else {
-               Write-Error "❌ Critical: Source assets folder not found!"
-               exit 1
           }
           
-          # Créer le fichier de métadonnées pour VEXT
+          # Metadata
           $short_sha = "${{ github.sha }}".Substring(0, 7)
           $metadata = @{
             name = "Aether Strike"
             version = "0.1.0-$short_sha"
             executable = "${{ env.GAME_NAME }}.exe"
             description = "RPG Stick War - Turn-based combat game"
-            author = "Ether Platform"
-            build_date = "${{ steps.build_info.outputs.build_date }}"
+            size_mb = "$size_mb MB"
+            build_date = $build_date
             commit = "${{ github.sha }}"
-            size_mb = "${{ steps.build_info.outputs.exe_size }}"
             platform = "windows"
             architecture = "x64"
-            engine = "Macroquad"
-            
-            # Liens pour VEXT Launcher
             download_url = "https://github.com/Ryan-DPC/Vext-platform/releases/download/dev-latest/${{ env.GAME_NAME }}_v0.1.0_windows_x64.zip"
             update_url = "https://api.github.com/repos/Ryan-DPC/Vext-platform/releases/tags/dev-latest"
-            
-            requires = @{
-              os = "Windows 10+"
-              ram_mb = 512
-              disk_mb = 100
-            }
-            features = @(
-              "Turn-based combat"
-              "3 playable classes"
-              "Online multiplayer sessions"
-              "Character progression"
-              "Inventory system"
-            )
-            # Arguments que le Launcher doit passer au jeu
-            launch_args = @(
-              "--vext-token {token}"
-              "--vext-user-id {user_id}"
-              "--vext-server {server_url}"
-              "--fullscreen"
-            )
+            requires = @{ os = "Windows 10+"; ram_mb = 512; disk_mb = 100 }
+            launch_args = @("--vext-token {token}", "--vext-user-id {user_id}", "--vext-server {server_url}", "--fullscreen")
             save_data_path = "%APPDATA%/AetherStrike"
           }
-          
           $metadata | ConvertTo-Json -Depth 10 | Out-File -FilePath "dist/game_metadata.json" -Encoding utf8
           
-          echo "✅ Game package prepared successfully (EXE + Metadata only)!"
+          # Validate Executable
+          if (-not (Test-Path "dist/${{ env.GAME_NAME }}.exe")) { throw "Executable missing" }
           
-          echo "✅ Game package prepared successfully!"
-
-      - name: 🧪 Test game executable
-        working-directory: ${{ env.GAME_PATH }}/dist
-        shell: powershell
-        timeout-minutes: 1
-        continue-on-error: true
-        run: |
-          echo "Testing if executable can start..."
-          # Test que l'exe existe et est valide
-          if (Test-Path "${{ env.GAME_NAME }}.exe") {
-            $file_info = Get-Item "${{ env.GAME_NAME }}.exe"
-            echo "Executable found: $($file_info.Length) bytes"
-            echo "✅ Executable validation passed"
-          } else {
-            echo "❌ Executable not found!"
-            exit 1
-          }
-
-      - name: 📦 Create release archive
-        working-directory: ${{ env.GAME_PATH }}
-        shell: powershell
-        run: |
+          # Zip Archive
           $archive_name = "${{ env.GAME_NAME }}_v0.1.0_windows_x64.zip"
           Compress-Archive -Path "dist/*" -DestinationPath $archive_name -Force
           echo "archive_name=$archive_name" >> $env:GITHUB_ENV
-          echo "✅ Archive created: $archive_name"
 
       - name: 📤 Upload game artifact (for VEXT)
         uses: actions/upload-artifact@v4
@@ -187,8 +123,8 @@ jobs:
           | **Game** | Aether Strike |
           | **Version** | 0.1.0 |
           | **Platform** | Windows x64 |
-          | **Size** | ${{ steps.build_info.outputs.exe_size }} |
-          | **Build Date** | ${{ steps.build_info.outputs.build_date }} |
+          | **Size** | ${{ steps.prepare_release.outputs.exe_size }} |
+          | **Build Date** | ${{ steps.prepare_release.outputs.build_date }} |
           | **Commit** | ${{ github.sha }} |
           
           ### 📥 Downloads
