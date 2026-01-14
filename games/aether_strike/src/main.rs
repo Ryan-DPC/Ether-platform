@@ -788,6 +788,13 @@ async fn main() {
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::MainMenu;
+                    // Properly disconnect from server
+                    if let Some(client) = &game_client {
+                        client.disconnect();
+                    }
+                    game_client = None;
+                    other_players.clear();
+                    last_network_log = "Left Game".to_string();
                 }
             }
                 
