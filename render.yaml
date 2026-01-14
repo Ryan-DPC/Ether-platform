@@ -5,11 +5,11 @@ services:
   - type: web
     name: vext-backend
     region: frankfurt
-    env: node
+    env: bun
     plan: free # Change to starter/standard for production
     rootDir: . # Root context for Monorepo
     # Build: Install all dependencies, then build backend
-    buildCommand: npm install -g bun && bun install && cd apps/backend && bun run build
+    buildCommand: bun install && cd apps/backend && bun run build
     # Start: Run the compiled JS code
     startCommand: cd apps/backend && bun run start
     envVars:
@@ -37,10 +37,10 @@ services:
   - type: web
     name: vext-ws-server
     region: frankfurt
-    env: node
+    env: bun
     plan: free
     rootDir: .
-    buildCommand: npm install -g bun && bun install
+    buildCommand: bun install
     startCommand: cd apps/server && bun run src/index.ts
     envVars:
       - key: NODE_ENV
@@ -60,10 +60,10 @@ services:
   - type: web
     name: vext-game-server
     region: frankfurt
-    env: node
+    env: bun
     plan: free
     rootDir: .
-    buildCommand: npm install -g bun && bun install
+    buildCommand: bun install
     startCommand: cd apps/game-server && bun run src/index.ts
     envVars:
       - key: NODE_ENV
