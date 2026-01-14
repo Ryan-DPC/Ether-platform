@@ -40,7 +40,7 @@ pub struct RemotePlayer {
 
 #[derive(Debug, Clone)]
 pub enum GameEvent {
-    PlayerJoined { player_id: String, username: String },
+    PlayerJoined { player_id: String, username: String, class: String },
     PlayerLeft { player_id: String },
     PlayerUpdate(PlayerUpdate),
     GameState { players: Vec<RemotePlayer>, host_id: String },
@@ -280,6 +280,7 @@ fn ws_thread_loop(
                                         Some(GameEvent::PlayerJoined {
                                             player_id: data["playerId"].as_str().unwrap_or("").to_string(),
                                             username: data["username"].as_str().unwrap_or("Unknown").to_string(),
+                                            class: data["class"].as_str().unwrap_or("warrior").to_string(),
                                         })
                                     }
                                     "aether-strike:game-state" => {

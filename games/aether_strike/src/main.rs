@@ -495,14 +495,14 @@ async fn main() {
                                 }
                                 lobby_host_id = host_id;
                             }
-                            GameEvent::PlayerJoined { player_id, username } => {
+                            GameEvent::PlayerJoined { player_id, username, class } => {
                                 let msg = format!("{} joined!", username);
                                 println!("👋 {}", msg);
                                 last_network_log = msg;
                                 other_players.insert(player_id.clone(), network_client::RemotePlayer {
                                     userId: player_id,
                                     username: username,
-                                    class: "warrior".to_string(),
+                                    class: class,
                                     position: (400.0, 300.0),
                                 });
                             }
@@ -601,8 +601,24 @@ async fn main() {
             }
 
             GameScreen::InGame => {
-                clear_background(Color::from_rgba(40, 40, 60, 255));
+                clear_background(Color::from_rgba(20, 20, 30, 255));
                 
+                // --- DRAW ENVIRONMENT (Aesthetics) ---
+                // Simple tiled floor
+                for x in 0..((SCREEN_WIDTH / 50.0) as i32 + 1) {
+                    for y in 0..((SCREEN_HEIGHT / 50.0) as i32 + 1) {
+                         let color = if (x + y) % 2 == 0 {
+                             Color::from_rgba(30, 30, 45, 255)
+                         } else {
+                             Color::from_rgba(35, 35, 50, 255)
+                         };
+                         draw_rectangle(x as f32 * 50.0, y as f32 * 50.0, 50.0, 50.0, color);
+                    }
+                }
+                
+                // Draw a "Ground" line for reference
+                draw_rectangle(0.0, 500.0, SCREEN_WIDTH, 20.0, Color::from_rgba(50, 40, 30, 255));
+
                 // ===== RELAY MULTIPLAYER: Poll for updates in-game =====
                 if let Some(client) = &game_client {
                     for event in client.poll_updates() {

@@ -94,7 +94,7 @@ class AetherStrikeManager {
         `aether-strike:${gameId}`,
         JSON.stringify({
           type: 'aether-strike:player-joined',
-          data: { playerId: userId, username },
+          data: { playerId: userId, username, class: playerClass },
         })
       );
 
