@@ -22,14 +22,7 @@ export const useNotificationStore = defineStore('notification', {
         timestamp: new Date(),
         actionUrl: '/store',
       },
-      {
-        id: '2',
-        title: 'Mise à jour',
-        message: 'Une nouvelle version de VEXT Chess est disponible.',
-        type: 'success',
-        read: true,
-        timestamp: new Date(Date.now() - 86400000), // Yesterday
-      },
+
     ] as Notification[],
     isPopupOpen: false,
   }),
