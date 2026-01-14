@@ -225,24 +225,20 @@ impl SessionButton {
         }
     }
 
-    pub fn draw(&self, is_hovered: bool) {
-        let bg_color = if is_hovered {
-            Color::from_rgba(40, 60, 80, 255)
-        } else {
-            Color::from_rgba(30, 40, 60, 255)
-        };
+    pub fn draw(&self, _is_hovered: bool) {
+        let bg_color = Color::from_rgba(30, 40, 60, 255);
 
         // Fond
         draw_rectangle(self.rect.x, self.rect.y, self.rect.w, self.rect.h, bg_color);
 
-        // Bordure
+        // Bordure (toujours grise, plus de hover jaune)
         draw_rectangle_lines(
             self.rect.x,
             self.rect.y,
             self.rect.w,
             self.rect.h,
             2.0,
-            if is_hovered { GOLD } else { Color::from_rgba(100, 100, 150, 255) },
+            Color::from_rgba(100, 100, 150, 255),
         );
 
         let x = self.rect.x + 10.0;
@@ -307,10 +303,31 @@ impl SessionButton {
         // Map
         let map_x = ping_x + 80.0;
         draw_text(&self.session.map, map_x, y + 25.0, 16.0, LIGHTGRAY);
+        
+        // ===== BOUTON JOIN =====
+        let join_btn_x = self.rect.x + self.rect.w - 90.0;
+        let join_btn_y = self.rect.y + 10.0;
+        let join_btn_w = 80.0;
+        let join_btn_h = 40.0;
+        
+        draw_rectangle(join_btn_x, join_btn_y, join_btn_w, join_btn_h, DARKGREEN);
+        draw_rectangle_lines(join_btn_x, join_btn_y, join_btn_w, join_btn_h, 2.0, GREEN);
+        draw_text("JOIN", join_btn_x + 20.0, join_btn_y + 28.0, 20.0, WHITE);
     }
 
     pub fn is_clicked(&self, mouse_pos: Vec2) -> bool {
         self.rect.contains(mouse_pos)
+    }
+    
+    // Nouvelle méthode pour détecter le clic sur JOIN
+    pub fn join_button_clicked(&self, mouse_pos: Vec2) -> bool {
+        let join_btn_rect = Rect::new(
+            self.rect.x + self.rect.w - 90.0,
+            self.rect.y + 10.0,
+            80.0,
+            40.0,
+        );
+        join_btn_rect.contains(mouse_pos)
     }
 }
 

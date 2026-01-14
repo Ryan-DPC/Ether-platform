@@ -276,20 +276,34 @@ async fn main() {
                 draw_session_list(&sessions, &player_profile, mouse_pos);
 
                 if is_mouse_button_pressed(MouseButton::Left) {
-                    // Vérifier les clics sur les sessions
+                    // Vérifier les clics sur les boutons JOIN
                     for (i, session) in sessions.iter().enumerate() {
-                        if session.is_clicked(mouse_pos) {
-                            if session.session.is_private {
-                                // Demander mot de passe
-                                selected_session = Some(i);
-                                show_password_dialog = true;
-                                join_password_input.clear();
-                                join_password_active = true;
-                            } else {
-                                // Rejoindre directement
-                                println!("Joining session: {}", session.session.name);
-                                current_screen = GameScreen::Lobby;
+                        if session.join_button_clicked(mouse_pos) {
+                            selected_session = Some(i);
+                            
+                            // Connecter au relay WebSocket
+                            let lobby_id = session.session.name.clone(); // Utilise le nom comme ID pour l'instant
+                            let ws_url = "wss://vext-backend.onrender.com/ws";
+                            
+                            match GameClient::connect(
+                                ws_url,
+                                &vext_token,
+                                lobby_id.clone(),
+                                selected_class.unwrap_or(PlayerClass::Warrior).name().to_string()
+                            ) {
+                                Ok(client) => {
+                                    game_client = Some(client);
+                                    println!("✅ Connected to relay server!");
+                                    println!("✅ Joined lobby: {}", lobby_id);
+                                    current_screen = GameScreen::Lobby;
+                                }
+                                Err(e) => {
+                                    eprintln!("❌ Failed to connect to relay: {}", e);
+                                    // On peut quand même aller au lobby en mode "offline"
+                                    current_screen = GameScreen::Lobby;
+                                }
                             }
+                            break;
                         }
                     }
 
