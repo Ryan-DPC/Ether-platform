@@ -31,7 +31,8 @@ export const useFriendsStore = defineStore('friends', {
       this.loading = true;
       try {
         const response = await axios.get('/friends/list');
-        this.friends = response.data.friends || [];
+        const data = response.data;
+        this.friends = Array.isArray(data) ? data : (data.friends || []);
       } catch (error) {
         console.error('Failed to fetch friends:', error);
       } finally {
@@ -42,7 +43,8 @@ export const useFriendsStore = defineStore('friends', {
     async fetchFriendRequests() {
       try {
         const response = await axios.get('/friends/requests');
-        this.friendRequests = response.data.requests || [];
+        const data = response.data;
+        this.friendRequests = Array.isArray(data) ? data : (data.requests || []);
       } catch (error) {
         console.error('Failed to fetch friend requests:', error);
       }
