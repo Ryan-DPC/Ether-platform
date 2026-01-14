@@ -18,6 +18,13 @@ export const useToastStore = defineStore('toast', {
 
   actions: {
     addToast(toast: Omit<Toast, 'id'>) {
+      // Deduplicate: Don't add if same message exists
+      const existing = this.toasts.find(t => t.message === toast.message);
+      if (existing) {
+        // Optional: You could update a counter on the existing toast here
+        return;
+      }
+
       const id = Date.now().toString();
       const newToast = { ...toast, id };
       this.toasts.push(newToast);

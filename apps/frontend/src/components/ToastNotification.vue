@@ -44,17 +44,17 @@ const { toasts } = storeToRefs(toastStore)
 
 .toast {
   pointer-events: auto; /* Re-enable clicks on toasts */
-  min-width: 300px;
-  max-width: 400px;
-  padding: 16px;
+  min-width: 250px;
+  max-width: 350px;
+  padding: 10px 14px;
   border-radius: 8px;
   background: #2a2a2a;
   color: #fff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   border-left: 4px solid transparent;
 }
 
@@ -65,8 +65,8 @@ const { toasts } = storeToRefs(toastStore)
 
 .toast-content p {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .toast-action {
