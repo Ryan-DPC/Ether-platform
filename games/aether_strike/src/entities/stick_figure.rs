@@ -5,6 +5,7 @@ use super::{Entity, EntityType};
 #[derive(Debug, Clone)]
 pub struct StickFigure {
     pub position: Vec2,
+    pub name: String, // Added name field
     pub health: f32,
     pub max_health: f32,
     pub speed: f32,
@@ -16,9 +17,10 @@ pub struct StickFigure {
 }
 
 impl StickFigure {
-    pub fn new(position: Vec2) -> Self {
+    pub fn new(position: Vec2, name: String) -> Self { // Updated constructor
         StickFigure {
             position,
+            name,
             health: 100.0,
             max_health: 100.0,
             speed: 80.0,

@@ -19,6 +19,7 @@ pub struct PlayerProfile {
     pub vext_username: String,  // Pseudo du launcher VEXT
     pub character_name: String,
     pub friends: Vec<Friend>,
+    pub gold: u32,
 }
 
 impl PlayerProfile {
@@ -26,7 +27,8 @@ impl PlayerProfile {
         PlayerProfile {
             vext_username,
             character_name: String::new(),
-            friends: vec![],  // 0 mock
+            friends: vec![],
+            gold: 500, // Starter gold
         }
     }
 

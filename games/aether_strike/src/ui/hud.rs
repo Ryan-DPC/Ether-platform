@@ -7,11 +7,15 @@ pub enum BattleUIState {
     AttackMenu,
     BagMenu,
     PassiveInfo,
+    Defeat,
 }
 
 #[derive(Debug, Clone)]
 pub enum HUDAction {
     UseAttack(String),
+    UseItem(crate::inventory::ItemType),
+    Resurrect,
+    GiveUp,
     Flee,
     EndTurn,
 }
@@ -161,8 +165,8 @@ impl HUD {
         // ============================================================
         // ============================================================
         let team_panel_w = 180.0; // Reduced width
-        // Calculate needed height: 10 (top) + 70 (player) + 15 (gap) + 3 * (45 + 15 gap) + 10 (bottom) = ~280 -> Increased to 300 for safety
-        let team_panel_h = 300.0; 
+        // Calculate needed height exact: 10 + 70 + 15 + 45+15 + 45+15 + 45 + 10 = 270.0
+        let team_panel_h = 246.0; 
         
         draw_rectangle(0.0, 0.0, team_panel_w, team_panel_h, Color::from_rgba(15, 20, 30, 240));
         draw_line(team_panel_w, 0.0, team_panel_w, team_panel_h, 2.0, Color::from_rgba(60, 80, 120, 255));
@@ -333,10 +337,8 @@ impl HUD {
         draw_line(0.0, menu_y, screen_width, menu_y, 3.0, GOLD);
 
         // WAVE & GOLD (Bottom Right)
-        let wave_text = format!("WAVE {}", game_state.current_wave);
-        let gold_text = format!("{} G", game_state.resources.gold);
-        draw_text(&wave_text, screen_width - 150.0, menu_y + 25.0, 18.0, WHITE);
-        draw_text(&gold_text, screen_width - 150.0, menu_y + 45.0, 18.0, GOLD);
+        // WAVE & GOLD MOVED BELOW LOG
+
 
         // Turn status
         let status_text = if is_my_turn { "YOUR TURN - Choose an action!" } else { "ENEMY TURN..." };
@@ -358,6 +360,14 @@ impl HUD {
             let alpha = 255 - (i as u8 * 40);
             draw_text(log, log_x + 8.0, text_y, 12.0, Color::from_rgba(200, 200, 200, alpha));
         }
+
+        // WAVE & GOLD (Below Battle Log)
+        let wave_text = format!("WAVE {}", game_state.current_wave);
+        let gold_text = format!("{} G", game_state.resources.gold);
+        let stats_y = log_y + log_h + 25.0;
+        
+        draw_text(&wave_text, log_x, stats_y, 20.0, WHITE);
+        draw_text(&gold_text, log_x, stats_y + 25.0, 20.0, GOLD);
 
         // Disable overlay if not player turn
         if !is_my_turn {
@@ -477,15 +487,92 @@ impl HUD {
 
             BattleUIState::BagMenu => {
                 draw_text("INVENTORY", buttons_start_x, menu_y + 25.0, 16.0, GOLD);
-                let items = vec![("Potion", "+50 HP", 3), ("Ether", "+20 MP", 2), ("Elixir", "Full", 1)];
                 
-                for (i, (name, desc, count)) in items.iter().enumerate() {
-                    let y = menu_y + 50.0 + i as f32 * 28.0;
-                    draw_text(&format!("• {} (x{}) - {}", name, count, desc), buttons_start_x, y, 15.0, WHITE);
+                let btn_w = 250.0;
+                let btn_h = 40.0;
+                let gap = 10.0;
+                
+                let mut valid_items = 0;
+
+                for (i, item) in game_state.inventory.items.iter().enumerate() {
+                    if item.quantity == 0 { continue; }
+                    
+                    let y = menu_y + 45.0 + valid_items as f32 * (btn_h + gap);
+                    if y > screen_height - 20.0 { continue; } // Clipped
+                    
+                    let col = item.item_type.color();
+                    let name = item.item_type.name();
+                    let desc = item.item_type.description();
+                    let count = item.quantity;
+                    let icon = item.item_type.icon();
+
+                    let is_hovered = is_my_turn && mouse.0 >= buttons_start_x && mouse.0 <= buttons_start_x + btn_w && mouse.1 >= y && mouse.1 <= y + btn_h;
+                    
+                    let bg_color = if is_hovered { Color::from_rgba(60, 45, 45, 255) } else { Color::from_rgba(40, 30, 30, 255) };
+                    draw_rectangle(buttons_start_x, y, btn_w, btn_h, bg_color);
+                    draw_rectangle_lines(buttons_start_x, y, btn_w, btn_h, 1.0, col);
+                    
+                    draw_text(&format!("{} {} (x{})", icon, name, count), buttons_start_x + 10.0, y + 25.0, 18.0, WHITE);
+                    draw_text(desc, buttons_start_x + 160.0, y + 25.0, 12.0, LIGHTGRAY);
+                    
+                    if was_click && is_hovered && is_my_turn {
+                         result_action = Some(HUDAction::UseItem(item.item_type));
+                    }
+                    
+                    valid_items += 1;
+                }
+                
+                if valid_items == 0 {
+                    draw_text("Your bag is empty.", buttons_start_x, menu_y + 50.0, 16.0, GRAY);
                 }
 
                 if draw_back_button(screen_width, menu_y, mouse, was_click) {
                     *ui_state = BattleUIState::Main;
+                }
+            }
+            
+            BattleUIState::Defeat => {
+                // Dim background
+                draw_rectangle(0.0, 0.0, screen_width, screen_height, Color::from_rgba(0, 0, 0, 200));
+                
+                let modal_w = 400.0;
+                let modal_h = 250.0;
+                let mx = (screen_width - modal_w) / 2.0;
+                let my = (screen_height - modal_h) / 2.0;
+                
+                draw_rectangle(mx, my, modal_w, modal_h, Color::from_rgba(40, 10, 10, 255));
+                draw_rectangle_lines(mx, my, modal_w, modal_h, 3.0, RED);
+                
+                draw_text("DEFEAT", mx + 140.0, my + 40.0, 40.0, RED);
+                draw_text("You have fallen in battle...", mx + 90.0, my + 70.0, 20.0, WHITE);
+                
+                // Resurrect Button
+                let has_elixir = game_state.inventory.get_item_count(crate::inventory::ItemType::FullRestore) > 0;
+                let btn_w = 250.0;
+                let btn_h = 50.0;
+                let bx = mx + (modal_w - btn_w) / 2.0;
+                let by_res = my + 110.0;
+                
+                let res_color = if has_elixir { GOLD } else { GRAY };
+                draw_rectangle_lines(bx, by_res, btn_w, btn_h, 2.0, res_color);
+                
+                let elixir_count = game_state.inventory.get_item_count(crate::inventory::ItemType::FullRestore);
+                draw_text(&format!("Resurrect (Elixir: {})", elixir_count), bx + 20.0, by_res + 32.0, 20.0, res_color);
+                
+                if has_elixir && was_click && mouse.0 >= bx && mouse.0 <= bx + btn_w && mouse.1 >= by_res && mouse.1 <= by_res + btn_h {
+                    result_action = Some(HUDAction::Resurrect);
+                }
+                
+                // Give Up Button
+                let by_giveup = my + 180.0;
+                let hover_giveup = mouse.0 >= bx && mouse.0 <= bx + btn_w && mouse.1 >= by_giveup && mouse.1 <= by_giveup + btn_h;
+                let giveup_color = if hover_giveup { Color::from_rgba(200, 50, 50, 255) } else { Color::from_rgba(150, 50, 50, 255) };
+                
+                draw_rectangle(bx, by_giveup, btn_w, btn_h, giveup_color);
+                draw_text("Give Up (25% Gold)", bx + 35.0, by_giveup + 32.0, 20.0, WHITE);
+                
+                if was_click && hover_giveup {
+                    result_action = Some(HUDAction::GiveUp);
                 }
             }
             

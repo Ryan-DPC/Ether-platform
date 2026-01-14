@@ -30,10 +30,11 @@ pub fn draw_main_menu(profile: &PlayerProfile, buttons: &[MenuButton], mouse_pos
         LIGHTGRAY,
     );
 
-    // Pseudo VEXT en haut à gauche
-    draw_rectangle(10.0, 10.0, 300.0, 60.0, Color::from_rgba(0, 0, 0, 180));
-    draw_text("Logged in as:", 20.0, 35.0, 18.0, LIGHTGRAY);
-    draw_text(&profile.vext_username, 20.0, 60.0, 24.0, GOLD);
+    // Pseudo VEXT en haut à gauche (Incrusté, pas de boîte)
+    draw_text(&profile.vext_username, 20.0, 40.0, 30.0, GOLD);
+    
+    // Gold Amount
+    draw_text(&format!("Gold: {}", profile.gold), 20.0, 70.0, 20.0, YELLOW);
 
     // Dashboard amis à droite (si il y en a)
     if !profile.friends.is_empty() {

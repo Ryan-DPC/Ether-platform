@@ -162,8 +162,9 @@ async fn main() {
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
         MenuButton::new("JOUER", SCREEN_WIDTH / 2.0 - 150.0, 300.0, 300.0, 70.0),
-        MenuButton::new("OPTIONS", SCREEN_WIDTH / 2.0 - 150.0, 390.0, 300.0, 70.0),
-        MenuButton::new("QUITTER", SCREEN_WIDTH / 2.0 - 150.0, 480.0, 300.0, 70.0),
+        MenuButton::new("BOUTIQUE", SCREEN_WIDTH / 2.0 - 150.0, 390.0, 300.0, 70.0),
+        MenuButton::new("OPTIONS", SCREEN_WIDTH / 2.0 - 150.0, 480.0, 300.0, 70.0),
+        MenuButton::new("QUITTER", SCREEN_WIDTH / 2.0 - 150.0, 570.0, 300.0, 70.0),
     ];
 
     // ==== MENU JOUER ====
@@ -212,8 +213,11 @@ async fn main() {
                     if main_menu_buttons[0].is_clicked(mouse_pos) {
                         current_screen = GameScreen::PlayMenu;
                     } else if main_menu_buttons[1].is_clicked(mouse_pos) {
-                        current_screen = GameScreen::Options;
+                        // SHOP Clicked - Placeholder
+                        println!("Boutique clicked (Not implemented)");
                     } else if main_menu_buttons[2].is_clicked(mouse_pos) {
+                        current_screen = GameScreen::Options;
+                    } else if main_menu_buttons[3].is_clicked(mouse_pos) {
                         break;
                     }
                 }
@@ -260,7 +264,7 @@ async fn main() {
                         
                         _game_state = Some(GameState::new(player_class));
                         // Player Position (Front Left)
-                        let mut new_player = StickFigure::new(vec2(250.0, 450.0));
+                        let mut new_player = StickFigure::new(vec2(250.0, 450.0), "You".to_string());
                         new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
                         new_player.health = new_player.max_health;
                         new_player.color = player_class.color();
@@ -279,16 +283,16 @@ async fn main() {
                         
                         // Create Mock Teammates (Adjusted based on feedback)
                         _teammates.clear();
-                        // 1. DarkKnight (Top Back) - User: "Descendre un tout petit peu"
-                        let mut t1 = StickFigure::new(vec2(280.0, 200.0)); // Down (180->200)
+                        // 1. DarkKnight (Top Back)
+                        let mut t1 = StickFigure::new(vec2(280.0, 200.0), "DarkKnight".to_string());
                         t1.color = Color::from_rgba(200, 50, 50, 255); 
                         _teammates.push(t1);
                         // 2. Elara (Mage - Mid)
-                        let mut t2 = StickFigure::new(vec2(150.0, 360.0)); 
+                        let mut t2 = StickFigure::new(vec2(150.0, 360.0), "Elara".to_string());
                         t2.color = Color::from_rgba(50, 100, 200, 255); 
                         _teammates.push(t2);
                         // 3. SwiftArrow (Bot)
-                        let mut t3 = StickFigure::new(vec2(280.0, 460.0)); 
+                        let mut t3 = StickFigure::new(vec2(280.0, 460.0), "SwiftArrow".to_string()); 
                         t3.color = Color::from_rgba(50, 200, 100, 255); 
                         _teammates.push(t3);
 
@@ -609,7 +613,7 @@ async fn main() {
                                 
                                 _game_state = Some(GameState::new(p_class));
                                 
-                                let mut new_player = StickFigure::new(vec2(PLAYER_X, PLAYER_Y));
+                                let mut new_player = StickFigure::new(vec2(PLAYER_X, PLAYER_Y), "You".to_string());
                                 new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
                                 new_player.health = new_player.max_health;
                                 new_player.color = p_class.color();
@@ -855,6 +859,8 @@ async fn main() {
                             ..Default::default()
                         }
                      );
+                     // Name Tag (Restored)
+                     draw_text(&teammate.name, teammate.position.x - 40.0, teammate.position.y - 80.0, 18.0, WHITE);
                 }
 
                 if let Some(player) = &mut _player {
@@ -883,8 +889,8 @@ async fn main() {
                             },
                         );
 
-                        // Name tag above player REMOVED
-                        // draw_text("YOU", player.position.x + 50.0, player.position.y - 10.0, 20.0, GOLD);
+                        // Name tag (Restored)
+                        draw_text("YOU", player.position.x - 25.0, player.position.y - 80.0, 20.0, GOLD);
                     } else {
                         player.draw(tex, rect);
                     }
@@ -923,24 +929,11 @@ async fn main() {
                         }
                      );
 
-                     // AGGRO LINE VISUALIZATION
-                     if let Some(target_id) = enemy.get_target() {
-                         let target_pos = if target_id == "player" {
-                              _player.as_ref().map(|p| p.position)
-                         } else if target_id.starts_with("teammate_") {
-                              let idx = target_id.replace("teammate_", "").parse::<usize>().unwrap_or(0);
-                              _teammates.get(idx).map(|t| t.position)
-                         } else {
-                              None
-                         };
-                 
-                         if let Some(t_pos) = target_pos {
-                                // Draw dashed line or solid line to target
-                                draw_line(enemy.position.x, enemy.position.y, t_pos.x, t_pos.y, 2.0, Color::from_rgba(255, 50, 50, 150));
-                                draw_circle_lines(t_pos.x, t_pos.y, 30.0, 2.0, Color::from_rgba(255, 50, 50, 200));
-                                draw_text("TARGET", t_pos.x - 20.0, t_pos.y - 40.0, 16.0, RED);
-                         }
-                     }
+                     // Boss Label (Added)
+                     draw_text("BOSS", enemy.position.x - 30.0, enemy.position.y - 100.0, 30.0, RED);
+
+                     // AGGRO LINE VISUALIZATION REMOVED
+
 
                      // Boss Name Tag REMOVED
                      // draw_text("BOSS", enemy.position.x + 60.0, enemy.position.y - 15.0, 24.0, RED);
@@ -1023,16 +1016,69 @@ async fn main() {
                                         }
                                     }
                                 }
+                                crate::ui::hud::HUDAction::UseItem(item_type) => {
+                                    // Use item from inventory (decrements quantity)
+                                    if gs.inventory.use_item(item_type) {
+                                        match item_type {
+                                            crate::inventory::ItemType::HealthPotion => {
+                                                // +50 HP
+                                                gs.resources.current_hp = (gs.resources.current_hp + 50.0).min(gs.resources.max_hp);
+                                                if let Some(p) = &mut _player {
+                                                    p.health = gs.resources.current_hp;
+                                                }
+                                            }
+                                            crate::inventory::ItemType::ManaPotion => {
+                                                // +30 MP
+                                                gs.resources.restore_mana(30);
+                                            }
+                                            crate::inventory::ItemType::FullRestore => {
+                                                // Full HP/MP
+                                                gs.resources.current_hp = gs.resources.max_hp;
+                                                gs.resources.mana = gs.resources.max_mana;
+                                                if let Some(p) = &mut _player {
+                                                    p.health = gs.resources.max_hp;
+                                                }
+                                            }
+                                        }
+                                        
+                                        combat_logs.push(format!("Used {}!", item_type.name()));
+                                        
+                                        // End Turn
+                                        is_player_turn = false;
+                                        enemy_attack_timer = get_time() + 1.5;
+                                        battle_ui_state = crate::ui::hud::BattleUIState::Main;
+                                    }
+                                }
                                 crate::ui::hud::HUDAction::Flee => {
                                     combat_logs.push("You fled from battle!".to_string());
                                     current_screen = GameScreen::MainMenu;
                                     is_solo_mode = false;
                                 }
-                                crate::ui::hud::HUDAction::EndTurn => {
-                                    is_player_turn = false;
-                                    enemy_attack_timer = get_time() + 1.0;
+                                    crate::ui::hud::HUDAction::EndTurn => {
+                                        is_player_turn = false;
+                                        enemy_attack_timer = get_time() + 1.0;
+                                    }
+                                    crate::ui::hud::HUDAction::Resurrect => {
+                                        if gs.inventory.use_item(crate::inventory::ItemType::FullRestore) {
+                                            gs.resources.current_hp = gs.resources.max_hp;
+                                            gs.resources.mana = gs.resources.max_mana;
+                                            if let Some(p) = &mut _player {
+                                                p.health = gs.resources.max_hp;
+                                            }
+                                            battle_ui_state = crate::ui::hud::BattleUIState::Main;
+                                            combat_logs.push("Resurrected!".to_string());
+                                        }
+                                    }
+                                    crate::ui::hud::HUDAction::GiveUp => {
+                                        // Lose 25% of TOTAL gold
+                                        let lost_gold = (gs.resources.gold as f32 * 0.25) as u32;
+                                        gs.resources.gold = gs.resources.gold.saturating_sub(lost_gold);
+                                        
+                                        println!("Defeat! Lost {} gold.", lost_gold);
+                                        current_screen = GameScreen::PlayMenu; // Or MainMenu? PlayMenu is safer to see updated stats
+                                        is_solo_mode = false;
+                                    }
                                 }
-                            }
                         } else {
                             // Multiplayer mode: send to server
                             if let Some(client) = &game_client {
@@ -1045,6 +1091,12 @@ async fn main() {
                                     }
                                     crate::ui::hud::HUDAction::EndTurn => {
                                         client.end_turn();
+                                    }
+                                    crate::ui::hud::HUDAction::UseItem(_) => {
+                                        println!("Item usage not yet supported in Multiplayer");
+                                    }
+                                    _ => {
+                                        println!("Action not supported in Multiplayer");
                                     }
                                 }
                             }
@@ -1072,9 +1124,11 @@ async fn main() {
                         
                         // Check if player died
                         if gs.resources.current_hp <= 0.0 {
+                            gs.resources.current_hp = 0.0;
+                            battle_ui_state = crate::ui::hud::BattleUIState::Defeat;
                             combat_logs.push("You have been defeated!".to_string());
-                            // Could transition to game over screen
                         }
+
                         
                         // Check if enemy died
                         if enemy_hp <= 0.0 {
