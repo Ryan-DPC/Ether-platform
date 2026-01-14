@@ -26,6 +26,7 @@ const isInstalled = ref(false)
 const hasUpdate = ref(false)
 const installingGameId = ref<string | null>(null)
 const isInstalling = ref(false)
+const detectedInstallPath = ref<string | null>(null) // Track where the game is actually installed
 const pathSelector = ref<InstanceType<typeof InstallPathSelector> | null>(null)
 const installProgress = ref({
   progress: 0,
@@ -48,16 +49,30 @@ const reviewError = ref('')
 const { launchGame: launcherLaunch, installGame: launcherInstall, uninstallGame: launcherUninstall } = useGameLauncher();
 
 const checkInstallationStatus = async () => {
-    // We can rely on composable or keep local check. GameDetails typically needs to poll or check once.
-    // The previous implementation used checkGameInstalled from adapter. Let's keep it simple for now or move to composable if we added check there?
-    // We didn't add checkGameInstalled to composable public interface yet, only launch/install.
-    // Let's keep local check for existence, but used shared install logic.
-    const installPath = localStorage.getItem('etherInstallPath')
-    if (!installPath || !game.value) return
+    // Check main path
+    let installPath = localStorage.getItem('etherInstallPath')
+    
+    // Also check alternate library paths if not found in main
+    const libraryPathsStr = localStorage.getItem('vextLibraryPaths');
+    let pathsToCheck = [];
+    if (installPath) pathsToCheck.push(installPath);
+    if (libraryPathsStr) {
+        try {
+            pathsToCheck.push(...JSON.parse(libraryPathsStr));
+        } catch(e) {}
+    }
+    // Filter duplicates
+    pathsToCheck = [...new Set(pathsToCheck)];
 
-    const isFolderExists = await tauriAPI.checkGameInstalled(installPath, game.value.slug)
-    if (isFolderExists) {
-        isInstalled.value = true
+    if (pathsToCheck.length === 0 || !game.value) return
+
+    for (const path of pathsToCheck) {
+        const isFolderExists = await tauriAPI.checkGameInstalled(path, game.value.slug)
+        if (isFolderExists) {
+            isInstalled.value = true
+            detectedInstallPath.value = path; // Found it!
+            return;
+        }
     }
 }
 
@@ -84,6 +99,16 @@ const setupInstallListeners = () => {
             isInstalled.value = true
             hasUpdate.value = false
             
+            // If data contains installPath (it should, ideally), save it. 
+            // If not, we assume it's the one we just used. But data from event might not have it.
+            // But we know we just installed it.
+            // data structure usually: { gameId, gameName }
+            // Let's rely on re-checking status or assuming default if we can't get it.
+            // But wait, if we installed it, we likely set default path.
+            
+            // Ideally re-check status to verify logic
+            checkInstallationStatus();
+            
             new Notification('Ether Desktop', {
                 body: `✅ ${data.gameName} installé avec succès!`,
                 silent: false
@@ -106,11 +131,17 @@ const setupInstallListeners = () => {
 }
 
 const installGame = async () => {
+    let targetPath = null;
+    
+    // Logic to capture selected path
+    const capturePath = (path: string) => { targetPath = path; }
+    
+    // We wrap launcherInstall to perform install but we need to know the path used.
+    // launcherInstall returns { success, installPath }
+    
     const result = await launcherInstall(game.value);
 
-    // If result requires selection (not implemented fully in UI here, we rely on composable handling path selection if it could)
-    // Actually composable returns 'no_path' if it failed to find a path and expects UI to handle it.
-    // GameDetails has its own pathSelector ref.
+    // If result requires selection
     if (result.reason === 'no_path') {
          if (pathSelector.value) {
              const selected = await pathSelector.value.show();
@@ -118,28 +149,32 @@ const installGame = async () => {
                  // Save this path as default if not set
                  if (!localStorage.getItem('etherInstallPath')) {
                      localStorage.setItem('etherInstallPath', selected);
-                     
-                     // Also add to libraries list
                      const libs = [selected];
                      localStorage.setItem('vextLibraryPaths', JSON.stringify(libs));
                  }
                  
-                 await launcherInstall(game.value, selected);
+                 const res2 = await launcherInstall(game.value, selected);
+                 if (res2.success && res2.installPath) {
+                     detectedInstallPath.value = res2.installPath; // Save for session
+                 }
              }
          } else {
              alertStore.showAlert({
                 title: 'Configuration requise',
                 message: 'Veuillez définir un dossier d\'installation.',
                 type: 'info'
-            })
+             })
          }
+    } else if (result.success && result.installPath) {
+        detectedInstallPath.value = result.installPath;
     }
     
     // We rely on listeners to update state 'isInstalling'
 }
 
 const launchGame = async () => {
-    await launcherLaunch(game.value.slug);
+    // Use detected path if available
+    await launcherLaunch(game.value.slug, detectedInstallPath.value || undefined);
 }
 
 const purchaseGame = async () => {

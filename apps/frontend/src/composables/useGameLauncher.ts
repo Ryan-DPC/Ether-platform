@@ -21,14 +21,14 @@ export function useGameLauncher() {
    * Launch a game given its folder name (slug).
    * Automatically handles User Data, Tokens, Friends List, and Stats.
    */
-  const launchGame = async (folderName: string) => {
+  const launchGame = async (folderName: string, specificPath?: string) => {
     if (!(window as any).__TAURI__) {
       console.warn('Launch requested in non-Tauri environment');
       return;
     }
 
     try {
-      let installPath = localStorage.getItem('etherInstallPath');
+      let installPath = specificPath || localStorage.getItem('etherInstallPath');
 
       // Fallback: Check libraries if default path is missing
       if (!installPath) {
