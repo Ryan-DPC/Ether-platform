@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use macroquad::prelude::*;
+use std::collections::HashMap;
 
 mod game;
 mod entities;
@@ -11,6 +12,7 @@ mod menu_system;
 mod menu_ui;
 mod assets;
 mod network_api;
+mod network_client;
 
 use game::GameState;
 use entities::{StickFigure, Enemy};
@@ -18,6 +20,7 @@ use class_system::PlayerClass;
 use menu_system::{GameScreen, PlayerProfile, MenuButton, ClassButton, GameSession, SessionButton};
 use menu_ui::{draw_main_menu, draw_play_menu, draw_character_creation, draw_session_list, draw_create_server, draw_password_dialog};
 use assets::GameAssets;
+use network_client::{GameClient, GameEvent};
 
 const SCREEN_WIDTH: f32 = 1024.0;
 const SCREEN_HEIGHT: f32 = 768.0;
@@ -117,6 +120,11 @@ async fn main() {
     // Sessions mock (normalement viendraient du serveur)
     // Sessions mock (normalement viendraient du serveur - vide maintenant)
     let mut sessions: Vec<SessionButton> = Vec::new();
+    
+    // Network multiplayer relay
+    let mut game_client: Option<GameClient> = None;
+    let mut other_players: HashMap<String, (f32, f32)> = HashMap::new();
+    let vext_token = _vext_token.clone(); // Garde le token pour l'auth WebSocket
     
     // Dialogue de mot de passe
     let mut show_password_dialog = false;

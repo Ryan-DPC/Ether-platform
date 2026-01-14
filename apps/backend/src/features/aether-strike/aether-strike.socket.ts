@@ -148,11 +148,11 @@ export const handleAetherStrikeMessage = async (ws: any, event: string, payload:
             break;
 
         case 'aether-strike:player-input':
-            const gameId = ws.data.aetherGameId;
-            if (!gameId) return;
+            const inputGameId = ws.data.aetherGameId;
+            if (!inputGameId) return;
 
             // Relay input to all other players
-            ws.publish(`aether-game:${gameId}`, JSON.stringify({
+            ws.publish(`aether-game:${inputGameId}`, JSON.stringify({
                 type: 'aether-strike:player-update',
                 data: {
                     playerId: userId,
@@ -219,18 +219,18 @@ export const handleAetherStrikeMessage = async (ws: any, event: string, payload:
 
 export const handleAetherStrikeDisconnect = (ws: any) => {
     const userId = ws.data.userId;
-    const gameId = ws.data.aetherGameId;
+    const disconnectGameId = ws.data.aetherGameId;
 
-    if (!gameId) return;
+    if (!disconnectGameId) return;
 
-    const room = gameRooms.get(gameId);
+    const room = gameRooms.get(disconnectGameId);
     if (!room) return;
 
     // Remove player from room
     room.players.delete(userId);
 
     // Notify others
-    ws.publish(`aether-game:${gameId}`, JSON.stringify({
+    ws.publish(`aether-game:${disconnectGameId}`, JSON.stringify({
         type: 'aether-strike:player-left',
         data: {
             playerId: userId,
@@ -238,23 +238,23 @@ export const handleAetherStrikeDisconnect = (ws: any) => {
         },
     }));
 
-    ws.unsubscribe(`aether-game:${gameId}`);
+    ws.unsubscribe(`aether-game:${disconnectGameId}`);
     delete ws.data.aetherGameId;
 
     // Clean up empty rooms
     if (room.players.size === 0) {
-        gameRooms.delete(gameId);
-        console.log(`[Aether Strike] Room ${gameId} closed (empty)`);
+        gameRooms.delete(disconnectGameId);
+        console.log(`[Aether Strike] Room ${disconnectGameId} closed (empty)`);
     } else if (room.hostId === userId) {
         // Host left, assign new host
         const newHost = Array.from(room.players.keys())[0];
         room.hostId = newHost;
 
-        ws.publish(`aether-game:${gameId}`, JSON.stringify({
+        ws.publish(`aether-game:${disconnectGameId}`, JSON.stringify({
             type: 'aether-strike:new-host',
             data: { hostId: newHost },
         }));
     }
 
-    console.log(`[Aether Strike] ${userId} left game ${gameId}`);
+    console.log(`[Aether Strike] ${userId} left game ${disconnectGameId}`);
 };
