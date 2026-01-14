@@ -25,6 +25,9 @@ import { groupsRoutes } from './features/groups/groups.routes';
 import { installationRoutes } from './features/installation/installation.routes';
 import { setWebSocketServer } from './services/websocket.service';
 import { logger } from './utils/logger';
+import { handleStickArenaMessage, handleStickArenaDisconnect } from './features/stick-arena/stick-arena.socket';
+import { FriendsService } from './features/friends/friends.service';
+import { jwt } from '@elysiajs/jwt';
 
 // Connect Database
 await connectDB();
@@ -91,6 +94,138 @@ const app = new Elysia()
   .use(adminRoutes)
   .use(groupsRoutes)
   .use(installationRoutes)
+
+  // WebSocket Handler
+  .ws('/ws', {
+    async open(ws) {
+      logger.info('[WebSocket] New connection opened');
+
+      // Try to authenticate from query parameter
+      const token = ws.data?.query?.token;
+
+      if (token) {
+        try {
+          const jwtInstance = jwt({
+            name: 'jwt',
+            secret: process.env.JWT_SECRET || 'default_secret',
+          });
+          const payload = await jwtInstance.decorator.jwt.verify(token);
+
+          if (payload) {
+            ws.data.userId = (payload as any).id;
+            ws.data.username = (payload as any).username;
+            ws.data.authenticated = true;
+
+            // Subscribe to user's personal channel
+            ws.subscribe(`user:${ws.data.userId}`);
+
+            logger.info(`[WebSocket] User auto-authenticated: ${ws.data.username} (${ws.data.userId})`);
+            ws.send(JSON.stringify({ type: 'auth:success', data: { userId: ws.data.userId } }));
+          }
+        } catch (err) {
+          logger.error('[WebSocket] Auto-auth failed:', err);
+          ws.data.authenticated = false;
+        }
+      } else {
+        ws.data.authenticated = false;
+      }
+    },
+
+    async message(ws, message) {
+      try {
+        // Parse message
+        let parsed: any;
+        if (typeof message === 'string') {
+          parsed = JSON.parse(message);
+        } else {
+          parsed = message;
+        }
+
+        const { type, data } = parsed;
+
+        // Handle authentication
+        if (type === 'auth' && data?.token) {
+          try {
+            const jwtInstance = jwt({
+              name: 'jwt',
+              secret: process.env.JWT_SECRET || 'default_secret',
+            });
+            const payload = await jwtInstance.decorator.jwt.verify(data.token);
+
+            if (payload) {
+              ws.data.userId = (payload as any).id;
+              ws.data.username = (payload as any).username;
+              ws.data.authenticated = true;
+
+              // Subscribe to user's personal channel
+              ws.subscribe(`user:${ws.data.userId}`);
+
+              logger.info(`[WebSocket] User authenticated: ${ws.data.username} (${ws.data.userId})`);
+              ws.send(JSON.stringify({ type: 'auth:success', data: { userId: ws.data.userId } }));
+            }
+          } catch (err) {
+            logger.error('[WebSocket] Auth failed:', err);
+            ws.send(JSON.stringify({ type: 'auth:failed', data: { error: 'Invalid token' } }));
+          }
+          return;
+        }
+
+        // Require authentication for other messages
+        if (!ws.data.authenticated) {
+          ws.send(JSON.stringify({ type: 'error', data: { message: 'Not authenticated' } }));
+          return;
+        }
+
+        // Handle user status updates
+        if (type === 'user:status-update') {
+          const { status, lobbyId } = data;
+          logger.info(`[WebSocket] Status update from ${ws.data.username}: ${status}`);
+
+          // Get user's friends and broadcast to them
+          const friends = await FriendsService.getFriends(ws.data.userId);
+
+          for (const friend of friends) {
+            const friendUserId = friend.friend_id?.toString();
+            if (friendUserId) {
+              // Publish to friend's personal channel
+              ws.publish(`user:${friendUserId}`, JSON.stringify({
+                type: 'friend:status-changed',
+                data: {
+                  userId: ws.data.userId,
+                  username: ws.data.username,
+                  status,
+                  lobbyId
+                }
+              }));
+            }
+          }
+          return;
+        }
+
+        // Handle Stick Arena messages
+        if (type?.startsWith('stick-arena:')) {
+          await handleStickArenaMessage(ws, type, data);
+          return;
+        }
+
+        // Handle other message types...
+        logger.warn(`[WebSocket] Unhandled message type: ${type}`);
+
+      } catch (error) {
+        logger.error('[WebSocket] Message handling error:', error);
+      }
+    },
+
+    close(ws) {
+      logger.info(`[WebSocket] Connection closed for user: ${ws.data.username || 'anonymous'}`);
+
+      // Clean up Stick Arena if needed
+      if (ws.data.stickArenaRoomId) {
+        handleStickArenaDisconnect(ws);
+      }
+    }
+  })
+
   .listen(process.env.PORT || 3000);
 
 // Initialize Global WebSocket Server Reference
