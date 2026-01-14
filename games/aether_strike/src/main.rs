@@ -143,7 +143,9 @@ async fn main() {
     let mut current_screen = GameScreen::MainMenu;
     let mut _game_state: Option<GameState> = None;
     let mut _player: Option<StickFigure> = None;
+    let mut _teammates: Vec<StickFigure> = Vec::new();
     let mut _enemy: Option<Enemy> = None;
+    let mut _enemies: Vec<Enemy> = Vec::new();
     let mut last_network_log = String::from("Ready");
     let mut battle_ui_state = crate::ui::hud::BattleUIState::Main;
     let mut current_turn_id = String::new();
@@ -257,16 +259,42 @@ async fn main() {
                         player_profile.character_name = character_name_input.clone();
                         
                         _game_state = Some(GameState::new(player_class));
-                        let mut new_player = StickFigure::new(vec2(PLAYER_X, PLAYER_Y));
+                        // Player Position (Front Left)
+                        let mut new_player = StickFigure::new(vec2(250.0, 450.0));
                         new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
                         new_player.health = new_player.max_health;
                         new_player.color = player_class.color();
                         _player = Some(new_player);
                         
-                        _enemy = Some(Enemy::new(vec2(ENEMY_X, ENEMY_Y)));
+                        // Main Boss Position (Front Right)
+                        _enemy = Some(Enemy::new(vec2(900.0, 420.0)));
                         
                         // Solo mode setup
                         is_solo_mode = true;
+                        
+                        // Create Mock Teammates
+                        _teammates.clear();
+                        // 1. DarkKnight (Back Left)
+                        let mut t1 = StickFigure::new(vec2(150.0, 380.0));
+                        t1.color = Color::from_rgba(200, 50, 50, 255); // Warrior red
+                        _teammates.push(t1);
+                        // 2. Elara (Back Middle)
+                        let mut t2 = StickFigure::new(vec2(100.0, 480.0));
+                        t2.color = Color::from_rgba(50, 100, 200, 255); // Mage blue
+                        _teammates.push(t2);
+                        // 3. SwiftArrow (Back Side)
+                        let mut t3 = StickFigure::new(vec2(180.0, 550.0));
+                        t3.color = Color::from_rgba(50, 200, 100, 255); // Archer green
+                        _teammates.push(t3);
+
+                        // Create Mock Enemies
+                        _enemies.clear();
+                        // 1. Shadow Minion
+                        _enemies.push(Enemy::new(vec2(1050.0, 380.0)));
+                        // 2. Dark Spirit
+                        _enemies.push(Enemy::new(vec2(1100.0, 480.0)));
+                        // 3. Void Crawler
+                        _enemies.push(Enemy::new(vec2(1020.0, 550.0)));
                         is_player_turn = true;
                         enemy_hp = 500.0;
                         enemy_max_hp = 500.0;
@@ -790,7 +818,13 @@ async fn main() {
                 }
                 
                 // Dessiner les entités
-                // Dessiner les entités
+                
+                // Draw Teammates (Smaller)
+                for teammate in &mut _teammates {
+                     // Draw smaller (0.8 scale)
+                     teammate.draw(Some(&assets.sprite_sheet), Some(assets.get_warrior_rect(0))); // Default sprite for now or vary based on mock class
+                }
+
                 if let Some(player) = &mut _player {
                     // Sélectionner la texture et le rect en fonction de la classe
                     // Utiliser frame 0 (idle) pour l'instant. On pourrait animer ça plus tard.
@@ -804,14 +838,62 @@ async fn main() {
                         (None, None) 
                     };
                     
-                    player.draw(tex, rect);
+                    if let Some(r) = rect {
+                         draw_texture_ex(
+                            &assets.sprite_sheet,
+                            player.position.x,
+                            player.position.y,
+                            WHITE,
+                            DrawTextureParams {
+                                source: Some(r),
+                                dest_size: Some(vec2(140.0, 140.0)), // Bigger player
+                                ..Default::default()
+                            },
+                        );
+                        // Name tag above player
+                        draw_text("YOU", player.position.x + 50.0, player.position.y - 10.0, 20.0, GOLD);
+                    } else {
+                        player.draw(tex, rect);
+                    }
                 }
                 
-                if let Some(enemy) = &mut _enemy {
-                    enemy.draw(Some(&assets.sprite_sheet), Some(assets.get_enemy_rect(0)));
+                // Draw Minion Enemies
+                for enemy in &mut _enemies {
+                     // Draw smaller
+                     draw_texture_ex(
+                        &assets.sprite_sheet,
+                        enemy.position.x,
+                        enemy.position.y,
+                        WHITE,
+                        DrawTextureParams {
+                             source: Some(assets.get_enemy_rect(0)),
+                             dest_size: Some(vec2(80.0, 80.0)), // Smaller minions
+                             flip_x: true,
+                             ..Default::default()
+                        }
+                     );
                 }
 
-                // Dessiner les autres joueurs
+                // Draw Main Boss
+                if let Some(enemy) = &mut _enemy {
+                    // Draw Boss Bigger
+                     draw_texture_ex(
+                        &assets.sprite_sheet,
+                        enemy.position.x,
+                        enemy.position.y,
+                        WHITE,
+                        DrawTextureParams {
+                             source: Some(assets.get_enemy_rect(0)),
+                             dest_size: Some(vec2(180.0, 180.0)), // Big Boss
+                             flip_x: true,
+                             ..Default::default()
+                        }
+                     );
+                     // Boss Name Tag
+                     draw_text("BOSS", enemy.position.x + 60.0, enemy.position.y - 15.0, 24.0, RED);
+                }
+
+                // Dessiner les autres joueurs (Online)
                 for player in other_players.values() {
                     let rect = match player.class.to_lowercase().as_str() {
                         "mage" => assets.get_mage_rect(0),

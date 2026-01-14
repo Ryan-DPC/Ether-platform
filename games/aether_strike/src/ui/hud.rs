@@ -127,15 +127,23 @@ impl HUD {
         draw_text("TEAM", padding, 20.0, 16.0, Color::from_rgba(100, 150, 255, 255));
         
         for (i, member) in mock_team.iter().enumerate() {
-            let y = 35.0 + i as f32 * 55.0;
+            // Player is bigger
+            let (height, font_size_name, font_size_small) = if member.is_player {
+                (80.0, 16.0, 12.0)
+            } else {
+                (50.0, 12.0, 10.0)
+            };
             
+            let y_offset_base = if i == 0 { 35.0 } else { 35.0 + 85.0 + (i as f32 - 1.0) * 55.0 }; // Offset for first item (bigger)
+            let y = y_offset_base;
+
             // Background for each member
             let bg_color = if member.is_player {
-                Color::from_rgba(40, 50, 70, 200)
+                Color::from_rgba(50, 60, 80, 220)
             } else {
                 Color::from_rgba(25, 30, 40, 200)
             };
-            draw_rectangle(padding - 5.0, y - 5.0, team_panel_w - padding * 2.0 + 10.0, 50.0, bg_color);
+            draw_rectangle(padding - 5.0, y - 5.0, team_panel_w - padding * 2.0 + 10.0, height, bg_color);
             
             // Class color indicator
             let class_color = match member.class.to_lowercase().as_str() {
@@ -144,7 +152,7 @@ impl HUD {
                 "archer" => Color::from_rgba(60, 200, 100, 255),
                 _ => GRAY,
             };
-            draw_rectangle(padding - 5.0, y - 5.0, 4.0, 50.0, class_color);
+            draw_rectangle(padding - 5.0, y - 5.0, 4.0, height, class_color);
             
             // Name
             let name_color = if member.is_player { GOLD } else { WHITE };
@@ -153,19 +161,19 @@ impl HUD {
             } else { 
                 member.name.clone() 
             };
-            draw_text(&display_name, padding + 5.0, y + 12.0, 14.0, name_color);
+            draw_text(&display_name, padding + 5.0, y + 14.0, font_size_name, name_color);
             
-            // Class
-            draw_text(&member.class, padding + 5.0, y + 26.0, 11.0, class_color);
+            // Class text
+            draw_text(&member.class, padding + 5.0, y + 14.0 + font_size_name, font_size_small, class_color);
             
             // HP Bar
             let hp_bar_w = team_panel_w - padding * 2.0 - 10.0;
             let hp_percent = (member.hp / member.max_hp).clamp(0.0, 1.0);
-            let hp_bar_y = y + 32.0;
+            let hp_bar_y = y + 18.0 + font_size_name + 4.0;
+            let hp_bar_h = if member.is_player { 12.0 } else { 8.0 };
             
-            draw_rectangle(padding + 5.0, hp_bar_y, hp_bar_w, 10.0, Color::from_rgba(40, 15, 15, 255));
+            draw_rectangle(padding + 5.0, hp_bar_y, hp_bar_w, hp_bar_h, Color::from_rgba(40, 15, 15, 255));
             
-            // HP color based on percentage
             let hp_color = if hp_percent > 0.5 {
                 Color::from_rgba(80, 180, 80, 255)
             } else if hp_percent > 0.25 {
@@ -173,13 +181,30 @@ impl HUD {
             } else {
                 Color::from_rgba(200, 60, 60, 255)
             };
-            draw_rectangle(padding + 5.0, hp_bar_y, hp_bar_w * hp_percent, 10.0, hp_color);
-            draw_rectangle_lines(padding + 5.0, hp_bar_y, hp_bar_w, 10.0, 1.0, Color::from_rgba(60, 60, 60, 255));
+            draw_rectangle(padding + 5.0, hp_bar_y, hp_bar_w * hp_percent, hp_bar_h, hp_color);
+            draw_rectangle_lines(padding + 5.0, hp_bar_y, hp_bar_w, hp_bar_h, 1.0, Color::from_rgba(60, 60, 60, 255));
             
-            // HP text
-            let hp_text = format!("{:.0}/{:.0}", member.hp, member.max_hp);
-            let hp_dims = measure_text(&hp_text, None, 9, 1.0);
-            draw_text(&hp_text, padding + 5.0 + (hp_bar_w - hp_dims.width) / 2.0, hp_bar_y + 8.0, 9.0, WHITE);
+            // HP text (only for player or on mouse hover? Let's keep for player)
+            if member.is_player {
+                let hp_text = format!("{:.0}/{:.0}", member.hp, member.max_hp);
+                let hp_dims = measure_text(&hp_text, None, 10, 1.0);
+                draw_text(&hp_text, padding + 5.0 + (hp_bar_w - hp_dims.width) / 2.0, hp_bar_y + 10.0, 10.0, WHITE);
+            }
+
+            // Mana Bar (Only for Player)
+            if member.is_player {
+                let mp_percent = game_state.resources.mana as f32 / game_state.resources.max_mana as f32;
+                let mp_bar_y = hp_bar_y + hp_bar_h + 4.0;
+                let mp_bar_h = 8.0;
+
+                draw_rectangle(padding + 5.0, mp_bar_y, hp_bar_w, mp_bar_h, Color::from_rgba(10, 10, 40, 255));
+                draw_rectangle(padding + 5.0, mp_bar_y, hp_bar_w * mp_percent.clamp(0.0, 1.0), mp_bar_h, Color::from_rgba(50, 100, 250, 255)); // Blue
+                draw_rectangle_lines(padding + 5.0, mp_bar_y, hp_bar_w, mp_bar_h, 1.0, Color::from_rgba(60, 60, 100, 255));
+                
+                let mp_text = format!("{}/{}", game_state.resources.mana, game_state.resources.max_mana);
+                let mp_dims = measure_text(&mp_text, None, 8, 1.0);
+                draw_text(&mp_text, padding + 5.0 + (hp_bar_w - mp_dims.width) / 2.0, mp_bar_y + 7.0, 8.0, WHITE);
+            }
         }
 
         // ============================================================
@@ -193,24 +218,24 @@ impl HUD {
         draw_line(enemy_panel_x, 0.0, enemy_panel_x, enemy_panel_h, 2.0, Color::from_rgba(120, 60, 60, 255));
         draw_line(enemy_panel_x, enemy_panel_h, screen_width, enemy_panel_h, 2.0, Color::from_rgba(120, 60, 60, 255));
         
-        // Wave and Gold in top right corner
-        let wave_text = format!("WAVE {}", game_state.current_wave);
-        draw_text(&wave_text, screen_width - 80.0, 18.0, 14.0, Color::from_rgba(180, 180, 180, 255));
-        let gold_text = format!("{} G", game_state.resources.gold);
-        draw_text(&gold_text, screen_width - 60.0, 35.0, 12.0, GOLD);
+        // Wave and Gold in top right corner (Removed from top, moved down)
         
         draw_text("ENEMIES", enemy_panel_x + padding, 20.0, 16.0, Color::from_rgba(255, 100, 100, 255));
         
         for (i, enemy) in mock_enemies.iter().enumerate() {
-            let y = 35.0 + i as f32 * 50.0;
+            // Boss is bigger
+            let (height, font_size) = if enemy.is_boss { (60.0, 14.0) } else { (40.0, 12.0) };
+            
+            let y_offset_base = if i == 0 { 35.0 } else { 35.0 + 65.0 + (i as f32 - 1.0) * 45.0 };
+            let y = y_offset_base;
             
             // Background
             let bg_color = if enemy.is_boss {
-                Color::from_rgba(60, 30, 30, 200)
+                Color::from_rgba(60, 20, 20, 220)
             } else {
                 Color::from_rgba(35, 20, 20, 200)
             };
-            draw_rectangle(enemy_panel_x + padding - 5.0, y - 3.0, enemy_panel_w - padding * 2.0 + 10.0, 45.0, bg_color);
+            draw_rectangle(enemy_panel_x + padding - 5.0, y - 3.0, enemy_panel_w - padding * 2.0 + 10.0, height, bg_color);
             
             // Boss indicator
             if enemy.is_boss {
@@ -220,28 +245,44 @@ impl HUD {
             // Name
             let name_x = if enemy.is_boss { enemy_panel_x + padding + 15.0 } else { enemy_panel_x + padding };
             let name_color = if enemy.is_boss { Color::from_rgba(255, 150, 100, 255) } else { WHITE };
-            draw_text(&enemy.name, name_x, y + 14.0, 13.0, name_color);
+            draw_text(&enemy.name, name_x, y + 14.0, font_size, name_color);
             
             // HP Bar
             let hp_bar_w = enemy_panel_w - padding * 2.0 - 10.0;
             let hp_percent = (enemy.hp / enemy.max_hp).clamp(0.0, 1.0);
-            let hp_bar_y = y + 22.0;
+            let hp_bar_y = y + 18.0 + (if enemy.is_boss { 10.0 } else { 4.0 });
+            let hp_bar_h = if enemy.is_boss { 14.0 } else { 8.0 };
             
-            draw_rectangle(enemy_panel_x + padding, hp_bar_y, hp_bar_w, 12.0, Color::from_rgba(40, 15, 15, 255));
+            draw_rectangle(enemy_panel_x + padding, hp_bar_y, hp_bar_w, hp_bar_h, Color::from_rgba(40, 15, 15, 255));
             
             let hp_color = if enemy.is_boss {
                 Color::from_rgba(180, 50, 50, 255)
             } else {
                 Color::from_rgba(150, 60, 60, 255)
             };
-            draw_rectangle(enemy_panel_x + padding, hp_bar_y, hp_bar_w * hp_percent, 12.0, hp_color);
-            draw_rectangle_lines(enemy_panel_x + padding, hp_bar_y, hp_bar_w, 12.0, 1.0, Color::from_rgba(80, 40, 40, 255));
+            draw_rectangle(enemy_panel_x + padding, hp_bar_y, hp_bar_w * hp_percent, hp_bar_h, hp_color);
+            draw_rectangle_lines(enemy_panel_x + padding, hp_bar_y, hp_bar_w, hp_bar_h, 1.0, Color::from_rgba(80, 40, 40, 255));
             
-            // HP percentage
-            let hp_pct_text = format!("{:.0}%", hp_percent * 100.0);
-            let hp_dims = measure_text(&hp_pct_text, None, 10, 1.0);
-            draw_text(&hp_pct_text, enemy_panel_x + padding + (hp_bar_w - hp_dims.width) / 2.0, hp_bar_y + 10.0, 10.0, WHITE);
+            // HP percentage (only for Boss)
+            if enemy.is_boss {
+                let hp_pct_text = format!("{:.0}%", hp_percent * 100.0);
+                let hp_dims = measure_text(&hp_pct_text, None, 10, 1.0);
+                draw_text(&hp_pct_text, enemy_panel_x + padding + (hp_bar_w - hp_dims.width) / 2.0, hp_bar_y + 11.0, 10.0, WHITE);
+            }
         }
+
+        // WAVE AND GOLD INFO (Incrusted at bottom of enemy panel)
+        let info_y = enemy_panel_h + 10.0;
+        draw_rectangle(enemy_panel_x, info_y, enemy_panel_w, 40.0, Color::from_rgba(20, 20, 30, 220));
+        draw_line(enemy_panel_x, info_y, enemy_panel_x, info_y + 40.0, 2.0, Color::from_rgba(80, 80, 100, 255)); // Left border
+        draw_line(enemy_panel_x, info_y + 40.0, screen_width, info_y + 40.0, 2.0, Color::from_rgba(80, 80, 100, 255)); // Bottom border
+        
+        let wave_text = format!("WAVE {}", game_state.current_wave);
+        draw_text(&wave_text, enemy_panel_x + 20.0, info_y + 26.0, 18.0, WHITE);
+        
+        let gold_text = format!("{} G", game_state.resources.gold);
+        let gold_dims = measure_text(&gold_text, None, 18, 1.0);
+        draw_text(&gold_text, screen_width - gold_dims.width - 20.0, info_y + 26.0, 18.0, GOLD);
 
         // ============================================================
         // BOTTOM: BATTLE MENU WITH INTEGRATED COMBAT LOG
