@@ -5,7 +5,7 @@ const isTauri = !!(window as any).__TAURI__;
 const getBaseURL = () => {
   // If VITE_API_URL is explicitly set, use it
   if (import.meta.env.VITE_API_URL) {
-    return `${import.meta.env.VITE_API_URL}/api`;
+    return import.meta.env.VITE_API_URL;
   }
 
   const prodUrl = 'https://vext-backend-gur7.onrender.com/api';
