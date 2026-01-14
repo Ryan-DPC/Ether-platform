@@ -655,18 +655,20 @@ async fn main() {
                     draw_text(&player.username, player.position.0, player.position.1 - 10.0, 18.0, WHITE);
                 }
 
-                let text = if selected_class.is_some() {
-                    format!("Playing as {:?} - {}", 
-                        selected_class.unwrap(),
-                        player_profile.character_name
-                    )
-                } else {
-                    "In Game (Online mode)".to_string()
-                };
-                
-                draw_text(&text, 20.0, 40.0, 30.0, WHITE);
-                draw_text("Sorts et combat à venir...", 20.0, 80.0, 20.0, LIGHTGRAY);
-                draw_text("Press ESC to return to menu", 20.0, SCREEN_HEIGHT - 30.0, 20.0, LIGHTGRAY);
+                // --- DRAW HUD ---
+                if let Some(gs) = &_game_state {
+                    let class_name = if let Some(cls) = selected_class { cls.name() } else { "Unknown" };
+                    HUD::draw(
+                        gs, 
+                        SCREEN_WIDTH, 
+                        SCREEN_HEIGHT, 
+                        &player_profile.character_name,
+                        class_name
+                    );
+                }
+
+                // Texte de debug ou chat log (partie du HUD maintenant)
+                // draw_text(&text, 20.0, 40.0, 30.0, WHITE); 
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::MainMenu;
