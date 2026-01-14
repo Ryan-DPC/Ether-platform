@@ -428,6 +428,7 @@ async fn main() {
                 }
             }
 
+
             GameScreen::Lobby => {
                 clear_background(Color::from_rgba(30, 30, 50, 255));
                 
@@ -439,18 +440,53 @@ async fn main() {
 
                 draw_text(&format!("LOBBY: {}", session_name), 50.0, 50.0, 40.0, WHITE);
 
+                // ===== RELAY MULTIPLAYER: Poll for updates =====
+                if let Some(client) = &game_client {
+                    for event in client.poll_updates() {
+                        match event {
+                            GameEvent::PlayerJoined { player_id, username } => {
+                                println!("👋 {} joined!", username);
+                                other_players.insert(player_id, (400.0, 300.0));
+                            }
+                            GameEvent::PlayerLeft { player_id } => {
+                                println!("👋 Player {} left", &player_id[..6]);
+                                other_players.remove(&player_id);
+                            }
+                            GameEvent::PlayerUpdate(update) => {
+                                if let Some(pos) = update.position {
+                                    other_players.insert(update.player_id, pos);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
                 // Players Box
                 draw_rectangle(50.0, 100.0, 400.0, 500.0, Color::from_rgba(20, 20, 40, 255));
                 draw_rectangle_lines(50.0, 100.0, 400.0, 500.0, 2.0, LIGHTGRAY);
                 
-                draw_text("PLAYERS (1/4)", 70.0, 140.0, 30.0, GOLD);
+                // Dynamic player count
+                let player_count = 1 + other_players.len();
+                draw_text(&format!("PLAYERS ({}/4)", player_count), 70.0, 140.0, 30.0, GOLD);
                 
-                // Mock Player 1 (You)
+                // Player 1 (You)
                 draw_text(&format!("1. {} (You)", player_profile.vext_username), 70.0, 190.0, 24.0, GREEN);
-                // Mock Empty slots
-                draw_text("2. Waiting...", 70.0, 230.0, 24.0, DARKGRAY);
-                draw_text("3. Waiting...", 70.0, 270.0, 24.0, DARKGRAY);
-                draw_text("4. Waiting...", 70.0, 310.0, 24.0, DARKGRAY);
+                
+                // Other players (dynamically from relay)
+                let mut y = 230.0;
+                let mut i = 2;
+                for (id, _pos) in &other_players {
+                    draw_text(&format!("{}. Player {}", i, &id[..6]), 70.0, y, 24.0, WHITE);
+                    y += 40.0;
+                    i += 1;
+                }
+                
+                // Empty slots
+                for j in i..=4 {
+                    draw_text(&format!("{}. Waiting...", j), 70.0, y, 24.0, DARKGRAY);
+                    y += 40.0;
+                }
 
                 // Start Button
                 let start_btn_rect = Rect::new(SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 150.0, 300.0, 80.0);
@@ -466,6 +502,12 @@ async fn main() {
 
                 if is_key_pressed(KeyCode::Escape) {
                     current_screen = GameScreen::SessionList;
+                    // Disconnect relay
+                    if let Some(client) = &game_client {
+                        client.disconnect();
+                    }
+                    game_client = None;
+                    other_players.clear();
                 }
             }
 
