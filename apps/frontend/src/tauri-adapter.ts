@@ -11,7 +11,8 @@ interface TauriAPI {
     gameId: string,
     gameName: string,
     version: string,
-    manifest: any
+    manifest: any,
+    backendUrl: string
   ) => Promise<any>;
   checkGameInstalled: (installPath: string, folderName: string) => Promise<boolean>;
   uninstallGame: (installPath: string, folderName: string) => Promise<boolean>;
@@ -43,20 +44,18 @@ const tauriAPI: TauriAPI = {
     gameId,
     gameName,
     _version,
-    _manifest
+    _manifest,
+    backendUrl
   ) => {
     if (!(window as any).__TAURI_INTERNALS__) throw new Error('Not running in Tauri');
-    try {
-      return await invoke('install_game', {
-        downloadUrl,
-        installPath,
-        folderName,
-        gameId,
-        gameName,
-      });
-    } catch (e: any) {
-      throw e;
-    }
+    return await invoke('install_game', {
+      downloadUrl,
+      installPath,
+      folderName,
+      gameId,
+      gameName,
+      backendUrl,
+    });
   },
 
   checkGameInstalled: (installPath, folderName) => {

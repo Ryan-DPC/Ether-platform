@@ -70,7 +70,7 @@ export function useGameLauncher() {
         const game = gameStore.myGames.find(
           (g: any) => g.folder_name === folderName || g.slug === folderName
         );
-        statsGameId = game ? (game._id || game.id) : folderName;
+        statsGameId = game ? game._id || game.id : folderName;
       }
 
       // Ensure we have a string
@@ -151,6 +151,9 @@ export function useGameLauncher() {
       }
 
       // Start Install
+      const backendUrl =
+        import.meta.env.VITE_API_URL || 'https://vext-backend-gur7.onrender.com/api';
+
       await tauriAPI.installGame(
         zipUrl,
         installPath,
@@ -158,7 +161,8 @@ export function useGameLauncher() {
         gameId,
         game.game_name || game.gameName,
         game.version || game.latestVersion || '1.0.0',
-        game // Pass full manifest/game object if needed
+        game, // Pass full manifest/game object if needed
+        backendUrl
       );
 
       return { success: true, gameId: gameId, installPath };

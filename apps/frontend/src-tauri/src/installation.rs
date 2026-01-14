@@ -28,6 +28,7 @@ pub async fn install_game(
     folder_name: String,
     game_id: String,
     game_name: String,
+    backend_url: String,
 ) -> Result<String, String> {
     let client = Client::new();
     let game_dir = Path::new(&install_path).join("Vext").join(&folder_name);
@@ -159,6 +160,12 @@ pub async fn install_game(
         let mut m_file = fs::File::create(&manifest_path).map_err(|e| e.to_string())?;
         m_file.write_all(manifest_content.as_bytes()).map_err(|e| e.to_string())?;
     }
+
+    // 4. Create server_config.txt
+    let config_path = game_dir.join("server_config.txt");
+    // Always overwrite/create to ensure it has the latest URL
+    let mut c_file = fs::File::create(&config_path).map_err(|e| e.to_string())?;
+    c_file.write_all(backend_url.as_bytes()).map_err(|e| e.to_string())?;
 
     let _ = window.emit("install:complete", ProgressPayload {
         game_id: game_id.clone(),
