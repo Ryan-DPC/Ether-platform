@@ -40,3 +40,21 @@
 - **Timeline** : Barre en haut de l'écran affichant l'ordre des tours. Essentielle pour la stratégie (vitesse).
 - **Team Panel** : Pas de barres verticales colorées. Affichage épuré.
 - **Incrustation** : Wave et Gold intégrés dans le panneau ennemi.
+
+## 🛡️ Mécaniques de Combat
+
+### Système d'Aggro (Menace)
+
+- **Objectif** : Donner un rôle défensif au Tank (Warrior) et protéger les classes fragiles.
+- **Fonctionnement** :
+  - Chaque action des joueurs génère de la "Menace" (Aggro) envers les ennemis.
+  - Les ennemis attaquent le joueur ayant le plus d'Aggro.
+  - Le **Tank** dispose de compétences générant beaucoup d'Aggro (Taunt/Provocation).
+  - Les DPS/Healers génèrent moins d'Aggro, mais doivent faire attention à ne pas dépasser le Tank.
+
+### Buffs & Debuffs (Altérations d'état)
+
+- Ajoute de la profondeur tactique au-delà des simples dégâts.
+- **Debuffs** : Poison, Etourdissement (Stun), Brûlure, Ralentissement.
+- **Buffs** : Bouclier, Rage (ATK up), Hâte (Vitesse up).
+- **Synergies** : Combinaison d'effets entre classes (ex: Eau + Foudre = Dégâts accrus + Stun).
