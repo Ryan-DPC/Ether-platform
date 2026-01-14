@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+use std::collections::HashMap;
 use super::{Entity, EntityType};
 
 /// Ennemi (stick figure ennemi)
@@ -14,6 +15,8 @@ pub struct Enemy {
     pub attack_timer: f32,
     pub gold_reward: u32,
     pub color: Color,
+    // [AGGRO SYSTEM]
+    pub threat_table: HashMap<String, f32>,
 }
 
 impl Enemy {
@@ -25,11 +28,26 @@ impl Enemy {
             speed: 60.0,
             attack_damage: 10.0,
             attack_range: 50.0,
-            attack_cooldown: 1.5, // Plus lent que les alliés
+            attack_cooldown: 1.5,
             attack_timer: 0.0,
             gold_reward: 5,
             color: RED,
+            threat_table: HashMap::new(),
         }
+    }
+
+    /// Ajoute de la menace (aggro) envers une cible
+    pub fn add_threat(&mut self, target_id: &str, amount: f32) {
+        let current = self.threat_table.entry(target_id.to_string()).or_insert(0.0);
+        *current += amount;
+    }
+
+    /// Récupère l'ID de la cible avec le plus d'aggro
+    pub fn get_target(&self) -> Option<String> {
+        self.threat_table
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(k, _)| k.clone())
     }
 
     pub fn update(&mut self, delta_time: f32) {
@@ -37,6 +55,9 @@ impl Enemy {
         if self.attack_timer > 0.0 {
             self.attack_timer -= delta_time;
         }
+        
+        // Decay d'aggro pour éviter que ça monte à l'infini ? 
+        // Pour l'instant non, gardons le simple.
     }
 
     pub fn can_attack(&self) -> bool {
@@ -49,7 +70,7 @@ impl Enemy {
 
     pub fn draw(&self, texture: Option<&Texture2D>, source_rect: Option<Rect>) {
         if let Some(tex) = texture {
-            let scale = 2.0; // Scale up for pixel art visibility
+            let scale = 2.0; 
             
             let dest_w = if let Some(rect) = source_rect { rect.w * scale } else { tex.width() * scale };
             let dest_h = if let Some(rect) = source_rect { rect.h * scale } else { tex.height() * scale };
@@ -58,11 +79,11 @@ impl Enemy {
                 tex,
                 self.position.x - dest_w / 2.0,
                 self.position.y - dest_h / 2.0,
-                WHITE, // Can tint red if hit, etc.
+                WHITE, 
                 DrawTextureParams {
                     dest_size: Some(vec2(dest_w, dest_h)),
                     source: source_rect,
-                    flip_x: true, // Enemies on the right face left typically
+                    flip_x: true,
                     ..Default::default()
                 },
             );
@@ -118,28 +139,7 @@ impl Enemy {
             );
         }
 
-        // Barre de vie
-        let health_bar_width = 40.0;
-        let health_bar_height = 5.0;
-        let health_percentage = self.health / self.max_health;
-
-        // Background
-        draw_rectangle(
-            self.position.x - health_bar_width / 2.0,
-            self.position.y - 60.0,
-            health_bar_width,
-            health_bar_height,
-            DARKGRAY,
-        );
-
-        // Foreground
-        draw_rectangle(
-            self.position.x - health_bar_width / 2.0,
-            self.position.y - 60.0,
-            health_bar_width * health_percentage,
-            health_bar_height,
-            ORANGE,
-        );
+        // HP BAR REMOVED as per design
     }
 }
 

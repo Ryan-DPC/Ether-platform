@@ -298,6 +298,14 @@ async fn main() {
                         is_player_turn = true;
                         enemy_hp = 500.0;
                         enemy_max_hp = 500.0;
+                        
+                        // Initialize boss with some threat to teammate (Tanking simulation)
+                        if let Some(e) = &mut _enemy {
+                            e.max_health = 500.0;
+                            e.health = 500.0;
+                            e.add_threat("teammate_0", 40.0); // Warrior mocked threat
+                            e.add_threat("player", 0.0);
+                        }
                         combat_logs.clear();
                         combat_logs.push("Battle started!".to_string());
                         
@@ -891,6 +899,25 @@ async fn main() {
                         }
                      );
 
+                     // AGGRO LINE VISUALIZATION
+                     if let Some(target_id) = enemy.get_target() {
+                         let target_pos = if target_id == "player" {
+                              _player.as_ref().map(|p| p.position)
+                         } else if target_id.starts_with("teammate_") {
+                              let idx = target_id.replace("teammate_", "").parse::<usize>().unwrap_or(0);
+                              _teammates.get(idx).map(|t| t.position)
+                         } else {
+                              None
+                         };
+                 
+                         if let Some(t_pos) = target_pos {
+                                // Draw dashed line or solid line to target
+                                draw_line(enemy.position.x, enemy.position.y, t_pos.x, t_pos.y, 2.0, Color::from_rgba(255, 50, 50, 150));
+                                draw_circle_lines(t_pos.x, t_pos.y, 30.0, 2.0, Color::from_rgba(255, 50, 50, 200));
+                                draw_text("TARGET", t_pos.x - 20.0, t_pos.y - 40.0, 16.0, RED);
+                         }
+                     }
+
                      // Boss Name Tag REMOVED
                      // draw_text("BOSS", enemy.position.x + 60.0, enemy.position.y - 15.0, 24.0, RED);
                 }
@@ -956,6 +983,12 @@ async fn main() {
                                             // Deal damage to enemy
                                             let damage = atk.damage;
                                             enemy_hp = (enemy_hp - damage).max(0.0);
+                                            
+                                            // Update Aggro
+                                            if let Some(e) = &mut _enemy {
+                                                e.health = enemy_hp;
+                                                e.add_threat("player", damage);
+                                            }
                                             
                                             combat_logs.push(format!("You used {} for {:.0} damage!", name, damage));
                                             
