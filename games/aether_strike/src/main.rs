@@ -274,27 +274,27 @@ async fn main() {
                         
                         // Create Mock Teammates
                         _teammates.clear();
-                        // 1. DarkKnight (Back Left)
-                        let mut t1 = StickFigure::new(vec2(150.0, 380.0));
+                        // 1. DarkKnight (Back Top)
+                        let mut t1 = StickFigure::new(vec2(180.0, 400.0));
                         t1.color = Color::from_rgba(200, 50, 50, 255); // Warrior red
                         _teammates.push(t1);
-                        // 2. Elara (Back Middle)
-                        let mut t2 = StickFigure::new(vec2(100.0, 480.0));
+                        // 2. Elara (Back Middle/Far)
+                        let mut t2 = StickFigure::new(vec2(120.0, 450.0));
                         t2.color = Color::from_rgba(50, 100, 200, 255); // Mage blue
                         _teammates.push(t2);
-                        // 3. SwiftArrow (Back Side)
-                        let mut t3 = StickFigure::new(vec2(180.0, 550.0));
+                        // 3. SwiftArrow (Back Bottom)
+                        let mut t3 = StickFigure::new(vec2(180.0, 500.0));
                         t3.color = Color::from_rgba(50, 200, 100, 255); // Archer green
                         _teammates.push(t3);
 
                         // Create Mock Enemies
                         _enemies.clear();
                         // 1. Shadow Minion
-                        _enemies.push(Enemy::new(vec2(1050.0, 380.0)));
+                        _enemies.push(Enemy::new(vec2(1050.0, 400.0)));
                         // 2. Dark Spirit
-                        _enemies.push(Enemy::new(vec2(1100.0, 480.0)));
+                        _enemies.push(Enemy::new(vec2(1100.0, 450.0)));
                         // 3. Void Crawler
-                        _enemies.push(Enemy::new(vec2(1020.0, 550.0)));
+                        _enemies.push(Enemy::new(vec2(1050.0, 500.0)));
                         is_player_turn = true;
                         enemy_hp = 500.0;
                         enemy_max_hp = 500.0;

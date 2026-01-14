@@ -144,8 +144,10 @@ impl HUD {
             let x = start_x + i as f32 * (icon_size + gap);
             let y = timeline_y + 5.0;
             
-            // Highlight current turn (first item)
-            if i == 0 {
+            // Highlight current turn based on game state
+            let active_index = if is_my_turn { 0 } else { 1 };
+            
+            if i == active_index {
                 draw_rectangle(x - 2.0, y - 2.0, icon_size + 4.0, icon_size + 4.0, GOLD);
                 draw_text("TURN", x, y - 5.0, 10.0, GOLD);
             }
@@ -157,24 +159,25 @@ impl HUD {
             draw_text(&label[0..1], x + 8.0, y + 20.0, 20.0, WHITE);
         }
         // ============================================================
-        let team_panel_w = 220.0;
-        let team_panel_h = 30.0 + mock_team.len() as f32 * 55.0;
+        // ============================================================
+        let team_panel_w = 180.0; // Reduced width
+        let team_panel_h = 10.0 + mock_team.len() as f32 * 50.0;
         
         draw_rectangle(0.0, 0.0, team_panel_w, team_panel_h, Color::from_rgba(15, 20, 30, 240));
         draw_line(team_panel_w, 0.0, team_panel_w, team_panel_h, 2.0, Color::from_rgba(60, 80, 120, 255));
         draw_line(0.0, team_panel_h, team_panel_w, team_panel_h, 2.0, Color::from_rgba(60, 80, 120, 255));
         
-        draw_text("TEAM", padding, 20.0, 16.0, Color::from_rgba(100, 150, 255, 255));
+        // Removed "TEAM" title
         
         for (i, member) in mock_team.iter().enumerate() {
             // Player is bigger
             let (height, font_size_name, font_size_small) = if member.is_player {
-                (80.0, 16.0, 12.0)
+                (70.0, 14.0, 11.0)
             } else {
-                (50.0, 12.0, 10.0)
+                (45.0, 11.0, 9.0)
             };
             
-            let y_offset_base = if i == 0 { 35.0 } else { 35.0 + 85.0 + (i as f32 - 1.0) * 55.0 }; // Offset for first item (bigger)
+            let y_offset_base = if i == 0 { 15.0 } else { 15.0 + 75.0 + (i as f32 - 1.0) * 50.0 };
             let y = y_offset_base;
 
             // Background for each member
@@ -251,23 +254,22 @@ impl HUD {
         // ============================================================
         // RIGHT SIDE: ENEMIES PANEL
         // ============================================================
-        let enemy_panel_w = 240.0;
-        let enemy_panel_h = 30.0 + mock_enemies.len() as f32 * 50.0;
+        // ============================================================
+        let enemy_panel_w = 200.0; // Reduced width
+        let enemy_panel_h = 10.0 + mock_enemies.len() as f32 * 45.0;
         let enemy_panel_x = screen_width - enemy_panel_w;
         
         draw_rectangle(enemy_panel_x, 0.0, enemy_panel_w, enemy_panel_h, Color::from_rgba(30, 15, 15, 240));
         draw_line(enemy_panel_x, 0.0, enemy_panel_x, enemy_panel_h, 2.0, Color::from_rgba(120, 60, 60, 255));
         draw_line(enemy_panel_x, enemy_panel_h, screen_width, enemy_panel_h, 2.0, Color::from_rgba(120, 60, 60, 255));
         
-        // Wave and Gold in top right corner (Removed from top, moved down)
-        
-        draw_text("ENEMIES", enemy_panel_x + padding, 20.0, 16.0, Color::from_rgba(255, 100, 100, 255));
+        // Removed "ENEMIES" title
         
         for (i, enemy) in mock_enemies.iter().enumerate() {
             // Boss is bigger
-            let (height, font_size) = if enemy.is_boss { (60.0, 14.0) } else { (40.0, 12.0) };
+            let (height, font_size) = if enemy.is_boss { (55.0, 13.0) } else { (35.0, 11.0) };
             
-            let y_offset_base = if i == 0 { 35.0 } else { 35.0 + 65.0 + (i as f32 - 1.0) * 45.0 };
+            let y_offset_base = if i == 0 { 15.0 } else { 15.0 + 60.0 + (i as f32 - 1.0) * 40.0 };
             let y = y_offset_base;
             
             // Background
@@ -312,18 +314,7 @@ impl HUD {
             }
         }
 
-        // WAVE AND GOLD INFO (Incrusted at bottom of enemy panel)
-        let info_y = enemy_panel_h + 10.0;
-        draw_rectangle(enemy_panel_x, info_y, enemy_panel_w, 40.0, Color::from_rgba(20, 20, 30, 220));
-        draw_line(enemy_panel_x, info_y, enemy_panel_x, info_y + 40.0, 2.0, Color::from_rgba(80, 80, 100, 255)); // Left border
-        draw_line(enemy_panel_x, info_y + 40.0, screen_width, info_y + 40.0, 2.0, Color::from_rgba(80, 80, 100, 255)); // Bottom border
-        
-        let wave_text = format!("WAVE {}", game_state.current_wave);
-        draw_text(&wave_text, enemy_panel_x + 20.0, info_y + 26.0, 18.0, WHITE);
-        
-        let gold_text = format!("{} G", game_state.resources.gold);
-        let gold_dims = measure_text(&gold_text, None, 18, 1.0);
-        draw_text(&gold_text, screen_width - gold_dims.width - 20.0, info_y + 26.0, 18.0, GOLD);
+        // WAVE AND GOLD INFO REMOVED from here (Moved to bottom bar)
 
         // ============================================================
         // BOTTOM: BATTLE MENU WITH INTEGRATED COMBAT LOG
@@ -334,6 +325,12 @@ impl HUD {
         // Background
         draw_rectangle(0.0, menu_y, screen_width, menu_h, Color::from_rgba(12, 12, 18, 250));
         draw_line(0.0, menu_y, screen_width, menu_y, 3.0, GOLD);
+
+        // WAVE & GOLD (Bottom Right)
+        let wave_text = format!("WAVE {}", game_state.current_wave);
+        let gold_text = format!("{} G", game_state.resources.gold);
+        draw_text(&wave_text, screen_width - 150.0, menu_y + 25.0, 18.0, WHITE);
+        draw_text(&gold_text, screen_width - 150.0, menu_y + 45.0, 18.0, GOLD);
 
         // Turn status
         let status_text = if is_my_turn { "YOUR TURN - Choose an action!" } else { "ENEMY TURN..." };
