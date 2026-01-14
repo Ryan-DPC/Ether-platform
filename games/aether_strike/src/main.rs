@@ -850,8 +850,9 @@ async fn main() {
                                 ..Default::default()
                             },
                         );
-                        // Name tag above player
-                        draw_text("YOU", player.position.x + 50.0, player.position.y - 10.0, 20.0, GOLD);
+
+                        // Name tag above player REMOVED
+                        // draw_text("YOU", player.position.x + 50.0, player.position.y - 10.0, 20.0, GOLD);
                     } else {
                         player.draw(tex, rect);
                     }
@@ -889,8 +890,9 @@ async fn main() {
                              ..Default::default()
                         }
                      );
-                     // Boss Name Tag
-                     draw_text("BOSS", enemy.position.x + 60.0, enemy.position.y - 15.0, 24.0, RED);
+
+                     // Boss Name Tag REMOVED
+                     // draw_text("BOSS", enemy.position.x + 60.0, enemy.position.y - 15.0, 24.0, RED);
                 }
 
                 // Dessiner les autres joueurs (Online)

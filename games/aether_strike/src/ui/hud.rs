@@ -161,7 +161,8 @@ impl HUD {
         // ============================================================
         // ============================================================
         let team_panel_w = 180.0; // Reduced width
-        let team_panel_h = 10.0 + mock_team.len() as f32 * 50.0;
+        // Calculate needed height: 15 (padding) + 70 (player) + 15 (gap) + 3 * (45 + 5 gap) = ~250
+        let team_panel_h = 260.0; 
         
         draw_rectangle(0.0, 0.0, team_panel_w, team_panel_h, Color::from_rgba(15, 20, 30, 240));
         draw_line(team_panel_w, 0.0, team_panel_w, team_panel_h, 2.0, Color::from_rgba(60, 80, 120, 255));
