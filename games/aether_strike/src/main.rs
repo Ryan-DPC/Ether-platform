@@ -517,6 +517,24 @@ async fn main() {
                                 let msg = "Game start received! Launching...".to_string();
                                 println!("🚀 {}", msg);
                                 last_network_log = msg;
+                                
+                                // --- INITIALIZE GAME STATE FOR MULTIPLAYER ---
+                                // If we came straight to Online, these might be None.
+                                let p_class = selected_class.unwrap_or(PlayerClass::Warrior);
+                                // Ensure we set selected_class if it was None, for HUD drawing
+                                selected_class = Some(p_class);
+                                
+                                _game_state = Some(GameState::new(p_class));
+                                
+                                let mut new_player = StickFigure::new(vec2(PLAYER_X, PLAYER_Y));
+                                new_player.max_health = _game_state.as_ref().unwrap().get_max_hp();
+                                new_player.health = new_player.max_health;
+                                new_player.color = p_class.color();
+                                _player = Some(new_player);
+                                
+                                _enemy = Some(Enemy::new(vec2(ENEMY_X, ENEMY_Y)));
+                                // ---------------------------------------------
+
                                 current_screen = GameScreen::InGame;
                             }
                             GameEvent::NewHost { host_id } => {
