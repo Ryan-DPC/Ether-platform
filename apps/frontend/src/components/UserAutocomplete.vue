@@ -35,7 +35,9 @@ const performSearch = async (query: string) => {
   try {
     const response = await axios.get(`/users/search?q=${encodeURIComponent(query)}`)
     // Limit to 5 results as requested
-    results.value = (response.data.users || []).slice(0, 5)
+    const data = response.data;
+    const usersList = Array.isArray(data) ? data : (data.users || []);
+    results.value = usersList.slice(0, 5);
     showDropdown.value = true
   } catch (error) {
     console.error('Search failed:', error)
