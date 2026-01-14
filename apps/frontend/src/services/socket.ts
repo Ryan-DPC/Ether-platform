@@ -20,7 +20,14 @@ const getSocketUrl = () => {
 
   // In Production or Tauri, use production server
   if (import.meta.env.PROD || isTauri) {
-    baseUrl = prodUrl;
+    if (prodUrl) {
+      baseUrl = prodUrl;
+    }
+  }
+
+  if (!baseUrl) {
+    console.error('❌ WebSocket URL is undefined. Check .env variables.');
+    return '';
   }
 
   // Convert http/https to ws/wss
