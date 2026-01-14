@@ -142,6 +142,10 @@ async fn main() {
     let mut _enemy: Option<Enemy> = None;
     let mut last_network_log = String::from("Ready");
     let mut battle_ui_state = crate::ui::hud::BattleUIState::Main;
+    let mut current_turn_id = String::new();
+    let mut enemy_hp = 500.0;
+    let mut enemy_max_hp = 500.0;
+    let mut combat_logs: Vec<String> = Vec::new();
 
     // ==== MENU PRINCIPAL ====
     let main_menu_buttons = vec![
@@ -715,6 +719,39 @@ async fn main() {
                             GameEvent::PlayerLeft { player_id } => {
                                 other_players.remove(&player_id);
                             }
+                            GameEvent::TurnChanged { current_turn_id: next_id } => {
+                                current_turn_id = next_id;
+                                combat_logs.push(format!("Turn: {}", if current_turn_id == "enemy" { "ENEMY" } else { &current_turn_id[..4] }));
+                            }
+                            GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost, is_area: _ } => {
+                                let actor_name = if actor_id == "enemy" { "ENEMY" } else { 
+                                    if actor_id == player_profile.vext_username { "YOU" } else { &actor_id[..4] }
+                                };
+                                combat_logs.push(format!("{} used {} ({} dmg)", actor_name, action_name, damage));
+                                
+                                // Update HP based on target
+                                if let Some(tid) = target_id {
+                                    if tid == "enemy" {
+                                        enemy_hp = (enemy_hp - damage).max(0.0);
+                                    } else if tid == player_profile.vext_username {
+                                        if let Some(gs) = &mut _game_state {
+                                            gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                                        }
+                                    }
+                                } else if actor_id == "enemy" {
+                                    // Enemy area attack? (Simple: hit player)
+                                    if let Some(gs) = &mut _game_state {
+                                        gs.resources.current_hp = (gs.resources.current_hp - damage).max(0.0);
+                                    }
+                                }
+
+                                // Update Mana if it's us
+                                if actor_id == player_profile.vext_username {
+                                    if let Some(gs) = &mut _game_state {
+                                        gs.resources.mana = gs.resources.mana.saturating_sub(mana_cost);
+                                    }
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -771,16 +808,40 @@ async fn main() {
                 // --- DRAW HUD ---
                 if let Some(gs) = &_game_state {
                     let class_enum = selected_class.unwrap_or(PlayerClass::Warrior);
-                    
-                    HUD::draw(
+                    let is_my_turn = current_turn_id == player_profile.vext_username;
+                    let e_hp_percent = enemy_hp / enemy_max_hp;
+
+                    if let Some(action) = HUD::draw(
                         gs, 
                         SCREEN_WIDTH, 
                         SCREEN_HEIGHT, 
                         &player_profile.character_name,
                         class_enum,
                         &other_players,
+                        e_hp_percent,
+                        is_my_turn,
                         &mut battle_ui_state
-                    );
+                    ) {
+                        if let Some(client) = &game_client {
+                            match action {
+                                crate::ui::hud::HUDAction::UseAttack(name) => {
+                                    client.use_attack(name, Some("enemy".to_string()));
+                                }
+                                crate::ui::hud::HUDAction::Flee => {
+                                    client.flee();
+                                }
+                                crate::ui::hud::HUDAction::EndTurn => {
+                                    client.end_turn();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- DRAW COMBAT LOGS ---
+                draw_rectangle(10.0, 150.0, 250.0, 200.0, Color::from_rgba(0, 0, 0, 100));
+                for (i, log) in combat_logs.iter().rev().take(10).enumerate() {
+                    draw_text(log, 20.0, 330.0 - (i as f32 * 20.0), 16.0, WHITE);
                 }
 
                 // Texte de debug ou chat log (partie du HUD maintenant)

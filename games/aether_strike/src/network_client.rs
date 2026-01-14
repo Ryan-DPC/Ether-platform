@@ -43,11 +43,20 @@ pub struct RemotePlayer {
 pub enum GameEvent {
     PlayerJoined { player_id: String, username: String, class: String },
     PlayerLeft { player_id: String },
-    PlayerUpdated { player_id: String, class: String }, // New event
+    PlayerUpdated { player_id: String, class: String },
     PlayerUpdate(PlayerUpdate),
     GameState { players: Vec<RemotePlayer>, host_id: String },
     GameStarted,
     NewHost { host_id: String },
+    CombatAction { 
+        actor_id: String, 
+        target_id: Option<String>, 
+        action_name: String, 
+        damage: f32, 
+        mana_cost: u32,
+        is_area: bool 
+    },
+    TurnChanged { current_turn_id: String },
     Error(String),
 }
 
@@ -62,9 +71,11 @@ pub struct GameClient {
 // Commandes que le jeu peut envoyer au thread WS
 enum WsCommand {
     SendInput { position: (f32, f32), velocity: (f32, f32), action: String },
-    SendAttack { target_pos: (f32, f32) },
-    ChangeClass { new_class: String }, // New command
+    UseAttack { attack_name: String, target_id: Option<String> },
+    ChangeClass { new_class: String },
     StartGame,
+    EndTurn,
+    Flee,
     Disconnect,
 }
 
@@ -113,9 +124,19 @@ impl GameClient {
         let _ = self.tx_to_ws.send(WsCommand::SendInput { position, velocity, action });
     }
 
-    /// Envoie une attaque
-    pub fn send_attack(&self, target_pos: (f32, f32)) {
-        let _ = self.tx_to_ws.send(WsCommand::SendAttack { target_pos });
+    /// Envoie l'utilisation d'une attaque
+    pub fn use_attack(&self, attack_name: String, target_id: Option<String>) {
+        let _ = self.tx_to_ws.send(WsCommand::UseAttack { attack_name, target_id });
+    }
+
+    /// Passe le tour
+    pub fn end_turn(&self) {
+        let _ = self.tx_to_ws.send(WsCommand::EndTurn);
+    }
+
+    /// Tente de fuir
+    pub fn flee(&self) {
+        let _ = self.tx_to_ws.send(WsCommand::Flee);
     }
 
     /// Change la classe du joueur
@@ -255,12 +276,27 @@ fn ws_thread_loop(
                     });
                     let _ = socket.send(Message::Text(msg.to_string()));
                 }
-                WsCommand::SendAttack { target_pos } => {
+                WsCommand::UseAttack { attack_name, target_id } => {
                     let msg = serde_json::json!({
-                        "type": "aether-strike:player-attack",
+                        "type": "aether-strike:use-attack",
                         "data": {
-                            "targetPos": [target_pos.0, target_pos.1]
+                            "attackName": attack_name,
+                            "targetId": target_id
                         }
+                    });
+                    let _ = socket.send(Message::Text(msg.to_string()));
+                }
+                WsCommand::EndTurn => {
+                    let msg = serde_json::json!({
+                        "type": "aether-strike:end-turn",
+                        "data": {}
+                    });
+                    let _ = socket.send(Message::Text(msg.to_string()));
+                }
+                WsCommand::Flee => {
+                    let msg = serde_json::json!({
+                        "type": "aether-strike:flee",
+                        "data": {}
                     });
                     let _ = socket.send(Message::Text(msg.to_string()));
                 }
@@ -353,6 +389,21 @@ fn ws_thread_loop(
                                             velocity: None,
                                             action: data["action"].as_str().map(|s| s.to_string()),
                                         }))
+                                    }
+                                    "aether-strike:combat-action" => {
+                                        Some(GameEvent::CombatAction {
+                                            actor_id: data["actorId"].as_str().unwrap_or("").to_string(),
+                                            target_id: data["targetId"].as_str().map(|s| s.to_string()),
+                                            action_name: data["actionName"].as_str().unwrap_or("").to_string(),
+                                            damage: data["damage"].as_f64().unwrap_or(0.0) as f32,
+                                            mana_cost: data["manaCost"].as_u64().unwrap_or(0) as u32,
+                                            is_area: data["isArea"].as_bool().unwrap_or(false),
+                                        })
+                                    }
+                                    "aether-strike:turn-changed" => {
+                                        Some(GameEvent::TurnChanged {
+                                            current_turn_id: data["currentTurnId"].as_str().unwrap_or("").to_string(),
+                                        })
                                     }
                                     "aether-strike:game-started" => {
                                         Some(GameEvent::GameStarted)

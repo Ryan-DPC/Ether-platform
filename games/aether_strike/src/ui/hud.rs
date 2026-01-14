@@ -9,6 +9,13 @@ pub enum BattleUIState {
     PassiveInfo,// Passive description
 }
 
+#[derive(Debug, Clone)]
+pub enum HUDAction {
+    UseAttack(String),
+    Flee,
+    EndTurn,
+}
+
 pub struct HUD;
 
 impl HUD {
@@ -19,8 +26,11 @@ impl HUD {
         character_name: &str, 
         player_class_enum: crate::class_system::PlayerClass,
         other_players: &std::collections::HashMap<String, crate::network_client::RemotePlayer>,
+        enemy_hp_percent: f32,
+        is_my_turn: bool,
         ui_state: &mut BattleUIState
-    ) {
+    ) -> Option<HUDAction> {
+        let mut result_action = None;
         // --- CONSTANTS ---
         let padding = 20.0;
         
@@ -150,6 +160,21 @@ impl HUD {
         let gold_text = format!("{} G", game_state.resources.gold);
         draw_text(&gold_text, screen_width - 100.0, 35.0, 24.0, GOLD);
 
+        // --- ENEMY STATS (Top Right) ---
+        let enemy_ui_w = 400.0;
+        let enemy_ui_x = screen_width - enemy_ui_w;
+        draw_rectangle(enemy_ui_x, 0.0, enemy_ui_w, top_ui_h, Color::from_rgba(0, 0, 0, 160));
+        
+        draw_text("BOSS: AETHER GUARDIAN", enemy_ui_x + 20.0, padding + 22.0, 24.0, RED);
+        
+        let enemy_bar_x = enemy_ui_x + 20.0;
+        let enemy_bar_y = padding + 45.0;
+        
+        draw_rectangle(enemy_bar_x, enemy_bar_y, 300.0, 15.0, Color::from_rgba(50, 0, 0, 255));
+        draw_rectangle(enemy_bar_x, enemy_bar_y, 300.0 * enemy_hp_percent, 15.0, MAROON);
+        draw_rectangle_lines(enemy_bar_x, enemy_bar_y, 300.0, 15.0, 1.5, WHITE);
+        draw_text("HP", enemy_bar_x - 30.0, enemy_bar_y + 12.0, 18.0, WHITE);
+
         // ============================================================
         //              BATTLE MENU SYSTEM
         // ============================================================
@@ -158,6 +183,10 @@ impl HUD {
         
         // Background for entire bottom area
         draw_rectangle(0.0, menu_y, screen_width, menu_h, Color::from_rgba(20, 20, 25, 240));
+        if !is_my_turn {
+            draw_rectangle(0.0, menu_y, screen_width, menu_h, Color::from_rgba(0, 0, 0, 100));
+            draw_text("WAITING FOR YOUR TURN...", padding, menu_y + 30.0, 20.0, GRAY);
+        }
         draw_line(0.0, menu_y, screen_width, menu_y, 2.0, GOLD);
 
         // Mouse logic
@@ -182,9 +211,9 @@ impl HUD {
                     let x = start_x + col as f32 * (btn_w + gap);
                     let y = start_y + row as f32 * (btn_h + gap);
                     
-                    let is_hovered = mouse.0 >= x && mouse.0 <= x + btn_w && mouse.1 >= y && mouse.1 <= y + btn_h;
+                    let is_hovered = is_my_turn && (mouse.0 >= x && mouse.0 <= x + btn_w && mouse.1 >= y && mouse.1 <= y + btn_h);
                     let color = if is_hovered { Color::from_rgba(80, 80, 150, 255) } else { Color::from_rgba(50, 50, 70, 255) };
-                    let text_color = if action == &"FUITE" { RED } else { WHITE };
+                    let text_color = if action == &"FUITE" { RED } else if !is_my_turn { DARKGRAY } else { WHITE };
 
                     draw_rectangle(x, y, btn_w, btn_h, color);
                     draw_rectangle_lines(x, y, btn_w, btn_h, 2.0, LIGHTGRAY);
@@ -195,7 +224,7 @@ impl HUD {
                         match i {
                             0 => *ui_state = BattleUIState::AttackMenu,
                             1 => *ui_state = BattleUIState::BagMenu,
-                            2 => { /* Flee Logic (Print for now) */ println!("Player fled!"); },
+                            2 => { result_action = Some(HUDAction::Flee); },
                             3 => *ui_state = BattleUIState::PassiveInfo,
                             _ => {}
                         }
@@ -296,6 +325,7 @@ impl HUD {
                 }
             }
         }
+        result_action
     }
 }
 

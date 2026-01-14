@@ -1,13 +1,13 @@
 {
-    "name": "Aether Strike",
-    "folder_name": "aether_strike",
-    "description": "A high-octane 2D strategy game where elements collide.",
-    "version": "1.0.0",
-    "executable": "AetherStrike.exe",
-    "genre": "Strategy",
-    "developer": "Ryan DPC",
-    "is_multiplayer": true,
-    "max_players": 2,
-    "price": 0,
-    "image_url": "https://raw.githubusercontent.com/Ryan-DPC/vext-platform/main/games/aether_strike/banner.png"
+  "name": "Aether Strike",
+  "folder_name": "aether_strike",
+  "description": "A high-octane 2D strategy game where elements collide.",
+  "version": "1.0.0",
+  "executable": "AetherStrike.exe",
+  "genre": ["RPG", "Strategy"],
+  "developer": "Ryan DPC",
+  "is_multiplayer": true,
+  "max_players": 4,
+  "price": 0,
+  "image_url": "https://raw.githubusercontent.com/Ryan-DPC/vext-platform/main/games/aether_strike/banner.png"
 }
