@@ -76,8 +76,8 @@ impl GameAssets {
 
                     let tex = Texture2D::from_image(&img);
                     tex.set_filter(FilterMode::Nearest);
-                    class_sprites.insert(cls.name.clone(), tex);
-                    class_metadata.insert(cls.name.clone(), (cls.sprite_frames_x, cls.sprite_frames_y, cls.sprite_frame_index, top_padding_ratio, center_x_ratio));
+                    class_sprites.insert(cls.name.to_lowercase(), tex);
+                    class_metadata.insert(cls.name.to_lowercase(), (cls.sprite_frames_x, cls.sprite_frames_y, cls.sprite_frame_index, top_padding_ratio, center_x_ratio));
                     break;
                 }
             }
@@ -92,18 +92,18 @@ impl GameAssets {
 
     /// Returns classes sprite or default from sheet
     pub fn get_class_texture<'a>(&'a self, class_name: &str) -> &'a Texture2D {
-        self.class_sprites.get(class_name).unwrap_or(&self.sprite_sheet)
+        self.class_sprites.get(&class_name.to_lowercase()).unwrap_or(&self.sprite_sheet)
     }
 
     /// Returns the source rect for a given class and animation frame
     pub fn get_sprite_rect(&self, class_name: &str, _frame_idx: u32) -> Rect {
-        if let Some(tex) = self.class_sprites.get(class_name) {
-             let (fx, fy, fidx, _, _) = self.class_metadata.get(class_name).unwrap_or(&(1, 1, 0, 0.0, 0.5));
-             let fw = tex.width() / *fx as f32;
+        if let Some(tex) = self.class_sprites.get(&class_name.to_lowercase()) {
+            let (fx, fy, fidx, _, _) = self.class_metadata.get(&class_name.to_lowercase()).unwrap_or(&(1, 1, 0, 0.0, 0.0));
+            let fw = tex.width() / *fx as f32;
              let fh = tex.height() / *fy as f32;
              
-             let x = (fidx % fx) as f32 * fw;
-             let y = (fidx / fx) as f32 * fh;
+             let x = (*fidx % *fx) as f32 * fw;
+             let y = (*fidx / *fx) as f32 * fh;
 
              Rect::new(x, y, fw, fh)
         } else {
@@ -133,7 +133,7 @@ impl GameAssets {
     }
 
     pub fn get_top_padding(&self, class_name: &str) -> f32 {
-        if let Some((_, _, _, ratio, _)) = self.class_metadata.get(class_name) {
+        if let Some((_, _, _, ratio, _)) = self.class_metadata.get(&class_name.to_lowercase()) {
             *ratio
         } else {
             0.0
@@ -141,7 +141,7 @@ impl GameAssets {
     }
 
     pub fn get_center_x_ratio(&self, class_name: &str) -> f32 {
-        if let Some((_, _, _, _, ratio)) = self.class_metadata.get(class_name) {
+        if let Some((_, _, _, _, ratio)) = self.class_metadata.get(&class_name.to_lowercase()) {
             *ratio
         } else {
             0.5
