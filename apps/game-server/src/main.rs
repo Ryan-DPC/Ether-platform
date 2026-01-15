@@ -70,115 +70,136 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     // User session state
     let mut user_id = String::new();
-    let mut username = String::new();
+    let _username = String::new(); // Placeholder
     let mut current_room_id = String::new();
     let mut rx_room: Option<broadcast::Receiver<String>> = None;
 
-    while let Some(Ok(msg)) = receiver.next().await {
-        if let Message::Text(text) = msg {
-            if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
-                let msg_type = parsed["type"].as_str().unwrap_or("");
-                let data = &parsed["data"];
-
-                match msg_type {
-                    "auth" => {
-                        // In a real dedicated server, verify JWT. 
-                        // For now we accept the claim to be stateless/fast.
-                         if let Some(token) = data["token"].as_str() {
-                            // Decode JWT logic here if needed (omitted for brevity)
-                            // We expect client to send userId/username in handshake or auth payload for this MVP
-                            // Or we decode the token. 
-                            // Simplification: Assume Client sends userId/username in auth data for this prototype
-                            // user_id = ...
-                         }
-                         // Actually, the current client sends token in QUERY param which Axum can extract.
-                         // But if upgraded, connection is established.
-                         // Let's assume the client sends an 'auth' message first?
-                         // Current Client logic: Connects with ?token=...
-                         // We skipped query param extraction in handler for simplicity.
-                         // Let's rely on receiving an ID from the client messages for now or TODO: Extract info.
-                         tracing::info!("Auth requested (Logic pending)");
-                    }
-
-                    "aether-strike:create-game" => {
-                        let game_id = data["gameId"].as_str().unwrap_or("default").to_string();
-                        user_id = "Host".to_string(); // Placeholder if auth missing
-                        // In real impl, grab from Auth.
-                        
-                        // Let's try to grab ID from data if present for testing
-                        if let Some(id) = data["userId"].as_str() { user_id = id.to_string(); }
-                        
-                        let (tx, _rx) = broadcast::channel(100);
-                        
-                        let mut rooms = state.rooms.write().unwrap();
-                        rooms.insert(game_id.clone(), Room {
-                            tx: tx.clone(),
-                            players: HashMap::new(),
-                            host_id: user_id.clone(),
-                            state: "waiting".to_string(),
-                        });
-                        
-                        // Subscribe
-                        current_room_id = game_id.clone();
-                        rx_room = Some(tx.subscribe());
-                        
-                        // Send success
-                        let _ = sender.send(Message::Text(serde_json::json!({
-                            "type": "aether-strike:game-created",
-                            "data": { "gameId": game_id, "hostId": user_id }
-                        }).to_string())).await;
-                        
-                        tracing::info!("Game Created: {}", game_id);
-                    }
-
-                    "aether-strike:join-game" => {
-                        let game_id = data["gameId"].as_str().unwrap_or("").to_string();
-                        // user_id needs to be set. 
-                        // FIX: Assuming for now we get it from an unsecure auth flow or we need to extract token.
-                        // Ideally we upgrade with Token.
-                        
-                        let mut rooms = state.rooms.write().unwrap();
-                        if let Some(room) = rooms.get_mut(&game_id) {
-                            // Subscribe
-                            rx_room = Some(room.tx.subscribe());
-                            current_room_id = game_id.clone();
-                            
-                             // Send state
-                            let _ = sender.send(Message::Text(serde_json::json!({
-                                "type": "aether-strike:game-state",
-                                "data": { 
-                                    "players": [], // TODO: Serialize players
-                                    "state": room.state,
-                                    "hostId": room.host_id
+    loop {
+        tokio::select! {
+            // 1. Handle incoming messages from Client
+            val = receiver.next() => {
+                match val {
+                    Some(Ok(msg)) => {
+                        if let Message::Text(text) = msg {
+                           if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
+                                let msg_type = parsed["type"].as_str().unwrap_or("");
+                                let data = &parsed["data"];
+                                
+                                match msg_type {
+                                    "auth" => {
+                                         if let Some(_token) = data["token"].as_str() {
+                                            tracing::info!("Auth requested (Logic pending)");
+                                         }
+                                    }
+                                    "aether-strike:create-game" => {
+                                        let game_id = data["gameId"].as_str().unwrap_or("default").to_string();
+                                        user_id = data["userId"].as_str().unwrap_or("Host").to_string();
+                                        
+                                        let (tx, _rx) = broadcast::channel(100);
+                                        
+                                        {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            rooms.insert(game_id.clone(), Room {
+                                                tx: tx.clone(),
+                                                players: HashMap::new(),
+                                                host_id: user_id.clone(),
+                                                state: "waiting".to_string(),
+                                            });
+                                        } // DROP LOCK HERE
+                                        
+                                        current_room_id = game_id.clone();
+                                        rx_room = Some(tx.subscribe());
+                                        
+                                        let response = serde_json::json!({
+                                            "type": "aether-strike:game-created",
+                                            "data": { "gameId": game_id, "hostId": user_id }
+                                        }).to_string();
+                                        let _ = sender.send(Message::Text(response)).await;
+                                        
+                                        tracing::info!("Game Created: {}", game_id);
+                                    }
+                                    "aether-strike:join-game" => {
+                                        let game_id = data["gameId"].as_str().unwrap_or("").to_string();
+                                        // TODO: Grab userId from auth or payload
+                                        
+                                        let (room_tx, room_state, room_host) = {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            if let Some(room) = rooms.get_mut(&game_id) {
+                                                (Some(room.tx.clone()), Some(room.state.clone()), Some(room.host_id.clone()))
+                                            } else {
+                                                (None, None, None)
+                                            }
+                                        }; // DROP LOCK
+                                        
+                                        if let Some(tx) = room_tx {
+                                            current_room_id = game_id.clone();
+                                            rx_room = Some(tx.subscribe());
+                                            
+                                            let response = serde_json::json!({
+                                                "type": "aether-strike:game-state",
+                                                "data": { 
+                                                    "players": [], 
+                                                    "state": room_state.unwrap_or_default(),
+                                                    "hostId": room_host.unwrap_or_default()
+                                                }
+                                            }).to_string();
+                                            let _ = sender.send(Message::Text(response)).await;
+                                            
+                                            tracing::info!("Player joined: {}", game_id);
+                                        }
+                                    }
+                                    _ => {
+                                        // Relay Logic
+                                        if !current_room_id.is_empty() {
+                                            let tx = {
+                                                let rooms = state.rooms.read().unwrap();
+                                                rooms.get(&current_room_id).map(|r| r.tx.clone())
+                                            }; // DROP LOCK
+                                            
+                                            if let Some(tx) = tx {
+                                                // Avoid echoing back to sender? 
+                                                // Ideally strictly relay. But if we broadcast, we receive it in our RX loop too?
+                                                // Usually we want to echo to others.
+                                                // broadcast::channel sends to ALL receivers.
+                                                let _ = tx.send(text);
+                                            }
+                                        }
+                                    }
                                 }
-                            }).to_string())).await;
-                            
-                            tracing::info!("Player joined: {}", game_id);
+                           }
                         }
                     }
-
-                    // Relay Logic
-                    _ => {
-                        // Generic Relay for other messages
-                        if !current_room_id.is_empty() {
-                            let rooms = state.rooms.read().unwrap();
-                            if let Some(room) = rooms.get(&current_room_id) {
-                                // Broadcast using format
-                                let _ = room.tx.send(text.clone());
-                            }
-                        }
+                    Some(Err(_)) | None => break, // Disconnect
+                }
+            }
+            
+            // 2. Handle outgoing messages from Room (Broadcast)
+            recv_result = async {
+                if let Some(rx) = &mut rx_room {
+                    rx.recv().await
+                } else {
+                    // If no room, wait forever (pending) so we don't busy loop
+                    std::future::pending::<Result<String, broadcast::error::RecvError>>().await
+                }
+            } => {
+                match recv_result {
+                    Ok(msg) => {
+                         // Relay to our WebSocket
+                         let _ = sender.send(Message::Text(msg)).await;
+                    }
+                    Err(_e) => {
+                        // Lagged or closed
                     }
                 }
             }
         }
     }
     
-    // Cleanup on disconnect
+    // Cleanup
     if !current_room_id.is_empty() {
          let mut rooms = state.rooms.write().unwrap();
          if let Some(room) = rooms.get_mut(&current_room_id) {
              room.players.remove(&user_id);
-             // Broadcast leave?
          }
     }
 }
