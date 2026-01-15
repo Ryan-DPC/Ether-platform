@@ -23,9 +23,9 @@ impl GameAssets {
         for cls in all_classes {
             let possible_paths = [
                 format!("assets/{}", cls.sprite_path.split('/').last().unwrap_or("")),
+                format!("assets/{}", cls.sprite_path),
                 cls.sprite_path.clone(),
                 format!("../{}", cls.sprite_path),
-                format!("../../{}", cls.sprite_path),
             ];
 
             for path_str in possible_paths {

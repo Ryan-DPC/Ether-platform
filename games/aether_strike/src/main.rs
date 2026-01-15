@@ -247,7 +247,7 @@ async fn main() {
                         _enemy = None; // Will be spawned by WaveManager
                         
                         // Solo mode setup
-                        let mut is_solo_mode = true;
+                        is_solo_mode = true;
 
                         
                         // Reposition Player to Slot 0
@@ -296,7 +296,7 @@ async fn main() {
                         // However, _enemies might be empty here if spawned later.
                         // Use WaveManager to get accurate enemies for init.
                         // WaveManager logic
-                        if let Some(wave) = wave_manager.get_current_wave() {
+                        if let Some(_wave) = wave_manager.get_current_wave() {
                              // Just check if it's boss wave to init _enemy ref if needed? 
                              // No, let InGame loop handle it.
                              // But wait, if InGame loop spawns on frame 1, we might flicker?
