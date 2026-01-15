@@ -298,12 +298,6 @@ async fn main() {
                         // Use WaveManager to get accurate enemies for init.
                         // WaveManager logic
                         if let Some(_wave) = wave_manager.get_current_wave() {
-                        if get_time() % 3.0 < 0.02 {
-                             println!("InGame Loop: _enemies count = {}, _enemy (solo boss) = {:?}", _enemies.len(), _enemy.is_some());
-                             if let Some(e) = _enemies.first() {
-                                 println!("  First Enemy Pos: ({}, {})", e.position.x, e.position.y);
-                             }
-                        }
 
                         
                         current_turn_id = turn_system.get_current_id().to_string();
@@ -529,9 +523,23 @@ async fn main() {
                             current_screen = GameScreen::InGame;
                             is_solo_mode = false;
 
-                            // Init visual player entity (CRITICAL FIX)
+                            // Init visual player entity with Sorted Position
+                            let mut all_ids = vec![player_profile.vext_username.clone()];
+                            for id in other_players.keys() {
+                                all_ids.push(id.clone());
+                            }
+                            all_ids.sort();
+                            let my_rank = all_ids.iter().position(|id| *id == player_profile.vext_username).unwrap_or(0);
+                            let pos = match my_rank {
+                                0 => vec2(250.0, 450.0), // Front Center
+                                1 => vec2(150.0, 350.0), // Top Flank
+                                2 => vec2(150.0, 550.0), // Bottom Flank
+                                3 => vec2(50.0, 450.0),  // Rear Guard
+                                _ => vec2(100.0 + (my_rank as f32 * 10.0), 450.0),
+                            };
+
                             if let Some(cls) = selected_class.as_ref() {
-                                let mut new_player = StickFigure::new(vec2(250.0, 450.0), "You".to_string());
+                                let mut new_player = StickFigure::new(pos, "You".to_string());
                                 new_player.max_health = cls.hp;
                                 new_player.health = new_player.max_health;
                                 new_player.color = cls.color();
