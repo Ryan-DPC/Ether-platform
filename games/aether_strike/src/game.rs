@@ -61,6 +61,17 @@ impl Resources {
 }
 
 /// État du jeu
+pub struct GameState {
+    pub character_class: CharacterClass,
+    pub resources: Resources,
+    pub active_passives: Vec<Passive>,
+    pub level: u32,
+    pub score: u32,
+    pub enemies_killed: u32,
+    pub auto_attack_timer: f32,
+    pub auto_attack_cooldown: f32,
+    pub auto_attack_enabled: bool,
+    pub exp: u32,
     pub exp_to_next_level: u32,
     pub session_gold: u32, // Gold gained this run
     pub session_exp: u32,  // XP gained this run
@@ -72,6 +83,16 @@ impl GameState {
         let max_hp = character_class.hp;
         let speed = character_class.speed;
         
+        Self {
+            character_class,
+            resources: Resources::new(max_mana, max_hp, speed),
+            active_passives: Vec::new(),
+            level: 1,
+            score: 0,
+            enemies_killed: 0,
+            auto_attack_timer: 0.0,
+            auto_attack_cooldown: 1.0,
+            auto_attack_enabled: true,
             exp: 0,
             exp_to_next_level: 10, // 10 EXP pour level 2
             session_gold: 0,
