@@ -24,21 +24,7 @@ pub fn get_api_url() -> String {
 
 // Get WebSocket URL based on config
 pub fn get_ws_url() -> String {
-    if let Ok(url) = fs::read_to_string("server_config.txt") {
-        let mut trimmed = url.trim().to_string();
-        // Remove /api if present to get base URL
-        if trimmed.ends_with("/api") {
-            trimmed = trimmed.replace("/api", "");
-        }
-        
-        if !trimmed.is_empty() {
-             let ws_protocol = if trimmed.starts_with("https") { "wss" } else { "ws" };
-             let base = trimmed.replace("http://", "").replace("https://", "");
-             let base = base.trim_end_matches('/');
-             return format!("{}://{}/ws", ws_protocol, base);
-        }
-    }
-    "wss://vext-backend-gur7.onrender.com/ws".to_string()
+    "wss://vext-ws-server-3jrc.onrender.com/ws".to_string()
 }
 
 // Auto-detect local IP (LAN)

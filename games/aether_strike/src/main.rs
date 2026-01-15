@@ -71,6 +71,17 @@ async fn main() {
     let vext_username = launcher_config.username;
     let _vext_token = launcher_config.token;
     let vext_token = _vext_token.clone();
+    
+    // DEBUG: Show CWD and Token Status
+    if let Ok(cwd) = std::env::current_dir() {
+        println!("📂 Current Working Directory: {:?}", cwd);
+    }
+    if vext_token.is_empty() {
+        println!("⚠️ WARNING: No VEXT Token provided! Online multiplayer will fail.");
+        println!("⚠️ Run with: --vext-token <YOUR_JWT_TOKEN>");
+    } else {
+        println!("🔑 Token provided (len: {})", vext_token.len());
+    }
 
     // Extraire le nom de personnage (username sans discriminant)
     let character_name_input = vext_username
