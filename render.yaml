@@ -60,11 +60,11 @@ services:
   - type: web
     name: vext-game-server
     region: frankfurt
-    env: node
+    env: rust
     plan: free
     rootDir: .
-    buildCommand: (curl -fsSL https://bun.sh/install | bash) && ~/.bun/bin/bun install
-    startCommand: cd apps/game-server && bun run src/index.ts
+    buildCommand: cd apps/game-server && cargo build --release
+    startCommand: cd apps/game-server && ./target/release/game-server
     envVars:
       - key: NODE_ENV
         value: production
