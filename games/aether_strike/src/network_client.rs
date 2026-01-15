@@ -287,9 +287,7 @@ fn ws_thread_loop(
                 WsCommand::StartGame { enemies } => {
                      let msg = serde_json::json!({
                          "type": "aether-strike:start-game",
-                         "payload": {
-                             "enemies": enemies
-                         }
+                         "enemies": enemies
                      });
                      if let Err(e) = socket.send(Message::Text(msg.to_string())) {
                          eprintln!("WS send error: {}", e);
@@ -322,9 +320,7 @@ fn ws_thread_loop(
                 WsCommand::ChangeClass { new_class } => {
                     let msg = serde_json::json!({
                         "type": "aether-strike:change-class",
-                        "data": {
-                            "newClass": new_class
-                        }
+                        "newClass": new_class
                     });
                     let _ = socket.send(Message::Text(msg.to_string()));
                 }
@@ -427,7 +423,7 @@ fn ws_thread_loop(
                                     }
                                     "aether-strike:game-started" => {
                                         // Deserialize enemies
-                                        let enemies_json = data["data"]["enemies"].as_array();
+                                        let enemies_json = data["enemies"].as_array();
                                         let mut enemies_list = Vec::new();
                                         if let Some(arr) = enemies_json {
                                             for val in arr {
