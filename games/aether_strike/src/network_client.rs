@@ -423,15 +423,19 @@ fn ws_thread_loop(
                                         })
                                     }
                                     "aether-strike:game-started" => {
+                                        println!("RAW GameStarted Data: {:?}", data);
                                         // Deserialize enemies
                                         let enemies_json = data["enemies"].as_array();
                                         let mut enemies_list = Vec::new();
                                         if let Some(arr) = enemies_json {
                                             for val in arr {
-                                                if let Ok(enemy) = serde_json::from_value::<EnemyData>(val.clone()) {
-                                                    enemies_list.push(enemy);
+                                                match serde_json::from_value::<EnemyData>(val.clone()) {
+                                                    Ok(enemy) => enemies_list.push(enemy),
+                                                    Err(e) => println!("ERROR Parsing Enemy: {} - JSON: {:?}", e, val)
                                                 }
                                             }
+                                        } else {
+                                            println!("ERROR: 'enemies' field not found or not an array in {:?}", data);
                                         }
                                         Some(GameEvent::GameStarted { enemies: enemies_list })
                                     }
