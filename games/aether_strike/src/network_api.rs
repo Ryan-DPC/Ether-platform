@@ -11,7 +11,7 @@ pub fn get_api_url() -> String {
 
 // Get WebSocket URL based on config
 pub fn get_ws_url() -> String {
-    "wss://vext-backend-yj77.onrender.com/ws".to_string()
+    "wss://vext-game-server-1mgy.onrender.com/ws".to_string()
 }
 
 // Auto-detect local IP (LAN)
