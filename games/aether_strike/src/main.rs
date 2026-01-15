@@ -582,7 +582,7 @@ async fn main() {
                     start_btn.draw(is_hovered);
 
                     // Check if START is clicked (with cooldown)
-                    if is_hovered && get_time() - lobby_entry_time > 1.0 {
+                    if is_hovered && is_mouse_button_pressed(MouseButton::Left) && get_time() - lobby_entry_time > 1.0 {
                         println!("Host starting game...");
                         if let Some(client) = &network_manager.client {
                             // Generate Wave 1 Enemies
