@@ -31,13 +31,7 @@ pub fn from_server_data(data: &[EnemyData], screen_width: f32, screen_height: f3
             scale: if kind == crate::entities::enemy::EnemyType::Boss { 2.0 } else { 1.0 },
         };
         
-        let enemy_pos = if kind == crate::entities::enemy::EnemyType::Boss {
-            vec2(screen_width - 150.0, screen_height / 2.0 - 50.0)
-        } else {
-            let y = screen_height / 2.0 + 50.0 + (minion_count as f32 * 60.0);
-            minion_count += 1;
-            vec2(screen_width - 150.0, y)
-        };
+        let enemy_pos = vec2(e_data.position.0, e_data.position.1);
 
         let mut new_entity = Enemy::new(enemy_pos, kind.clone(), stats);
         new_entity.id = e_data.id.clone();

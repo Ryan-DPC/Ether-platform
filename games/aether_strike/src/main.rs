@@ -544,26 +544,38 @@ async fn main() {
                             is_solo_mode = false;
 
                             // Init visual player entity with Sorted Position
+                            // Init visual player entity with Sorted Position
                             let mut all_ids = vec![player_profile.vext_username.clone()];
                             for id in other_players.keys() {
                                 all_ids.push(id.clone());
                             }
                             all_ids.sort();
-                            let my_rank = all_ids.iter().position(|id| *id == player_profile.vext_username).unwrap_or(0);
-                            let pos = match my_rank {
-                                0 => vec2(250.0, 450.0), // Front Center
-                                1 => vec2(150.0, 350.0), // Top Flank
-                                2 => vec2(150.0, 550.0), // Bottom Flank
-                                3 => vec2(50.0, 450.0),  // Rear Guard
-                                _ => vec2(100.0 + (my_rank as f32 * 10.0), 450.0),
+
+                            let get_pos = |rank: usize| -> Vec2 {
+                                match rank {
+                                    0 => vec2(250.0, 450.0), // Front Center
+                                    1 => vec2(150.0, 350.0), // Top Flank
+                                    2 => vec2(150.0, 550.0), // Bottom Flank
+                                    3 => vec2(50.0, 450.0),  // Rear Guard
+                                    _ => vec2(100.0 + (rank as f32 * 10.0), 450.0),
+                                }
                             };
 
-                            if let Some(cls) = selected_class.as_ref() {
-                                let mut new_player = StickFigure::new(pos, "You".to_string());
-                                new_player.max_health = cls.hp;
-                                new_player.health = new_player.max_health;
-                                new_player.color = cls.color();
-                                _player = Some(new_player);
+                            for (rank, id) in all_ids.iter().enumerate() {
+                                let pos = get_pos(rank);
+                                if *id == player_profile.vext_username {
+                                    if let Some(cls) = selected_class.as_ref() {
+                                        let mut new_player = StickFigure::new(pos, "You".to_string());
+                                        new_player.max_health = cls.hp;
+                                        new_player.health = new_player.max_health;
+                                        new_player.color = cls.color();
+                                        _player = Some(new_player);
+                                    }
+                                } else {
+                                    if let Some(p) = other_players.get_mut(id) {
+                                        p.position = (pos.x, pos.y);
+                                    }
+                                }
                             }
                         }
                     }
@@ -639,6 +651,7 @@ async fn main() {
                                          hp: e.health,
                                          max_hp: e.max_health,
                                          speed: e.speed,
+                                         position: (e.position.x, e.position.y),
                                      });
                                 }
                             } else {
