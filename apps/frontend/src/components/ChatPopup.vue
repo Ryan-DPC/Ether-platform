@@ -99,10 +99,14 @@ const loadMessages = async () => {
 
   try {
     // 1. Load from Local DB first (Offline First)
-    const localMessages = await getMessagesByFriendId(props.friend.id, myUserId);
-    if (localMessages.length > 0) {
-      messages.value = localMessages;
-      nextTick(() => scrollToBottom());
+    try {
+      const localMessages = await getMessagesByFriendId(props.friend.id, myUserId);
+      if (localMessages.length > 0) {
+        messages.value = localMessages;
+        nextTick(() => scrollToBottom());
+      }
+    } catch (dbErr) {
+      console.warn('Local DB load failed, falling back to API:', dbErr);
     }
 
     // 2. Fetch from server to get new messages
@@ -113,15 +117,29 @@ const loadMessages = async () => {
 
     // 3. Save remote messages to local DB and update UI
     for (const msg of remoteMessages) {
-      await saveMessage({
+      saveMessage({
         ...msg,
         to_user_id: msg.is_from_me ? props.friend.id : myUserId,
         from_user_id: msg.is_from_me ? myUserId : props.friend.id,
-      });
+      }).catch((err) => console.error('Failed to sync message to local DB:', err));
     }
 
-    // Final UI update with synced data
-    messages.value = await getMessagesByFriendId(props.friend.id, myUserId);
+    // Final UI update (if remote messages were found, or just refresh from DB)
+    if (remoteMessages.length > 0) {
+      try {
+        messages.value = await getMessagesByFriendId(props.friend.id, myUserId);
+      } catch (e) {
+        // Fallback: just use remote messages if DB fails
+        messages.value = remoteMessages;
+      }
+    } else {
+      // Re-verify from DB if no remote messages
+      try {
+        messages.value = await getMessagesByFriendId(props.friend.id, myUserId);
+      } catch (e) {
+        /* ignore */
+      }
+    }
     nextTick(() => scrollToBottom());
   } catch (error) {
     console.error('Failed to load messages:', error);

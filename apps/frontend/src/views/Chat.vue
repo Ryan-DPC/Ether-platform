@@ -1,158 +1,213 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, onUnmounted } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
-import axios from 'axios'
-import { socketService } from '../services/socket'
+import { ref, onMounted, nextTick, onUnmounted } from 'vue';
+import { useRoute, RouterLink } from 'vue-router';
+import axios from 'axios';
+import { socketService } from '../services/socket';
+import { useUserStore } from '../stores/userStore';
+import { getMessagesByFriendId, saveMessage } from '../services/db';
 
-const route = useRoute()
-const friendId = route.params.friendId as string
+const route = useRoute();
+const friendId = route.params.friendId as string;
 
-const user = ref<any>(null)
-const messages = ref<any[]>([])
-const newMessage = ref('')
-const messagesContainer = ref<HTMLElement>()
-const loading = ref(true)
+const user = ref<any>(null);
+const messages = ref<any[]>([]);
+const newMessage = ref('');
+const messagesContainer = ref<HTMLElement>();
+const loading = ref(true);
 
-const isTyping = ref(false)
-const typingTimeout = ref<any>(null)
-const emitTypingTimeout = ref<any>(null)
+const isTyping = ref(false);
+const typingTimeout = ref<any>(null);
+const emitTypingTimeout = ref<any>(null);
 
 // Handle incoming messages from WebSocket
 const handleNewMessage = (event: CustomEvent) => {
-  const data = event.detail
+  const data = event.detail;
   if (data.from_user_id === friendId) {
-    messages.value.push(data)
-    isTyping.value = false // Stop typing indicator when message received
-    nextTick(() => scrollToBottom())
+    messages.value.push(data);
+    isTyping.value = false; // Stop typing indicator when message received
+    nextTick(() => scrollToBottom());
   }
-}
+};
 
 const handleRemoteTyping = (event: CustomEvent) => {
-  const data = event.detail
+  const data = event.detail;
   if (data.fromUserId === friendId) {
-    isTyping.value = true
+    isTyping.value = true;
     // Auto-hide after 3 seconds if no stop-typing received
-    if (typingTimeout.value) clearTimeout(typingTimeout.value)
+    if (typingTimeout.value) clearTimeout(typingTimeout.value);
     typingTimeout.value = setTimeout(() => {
-      isTyping.value = false
-    }, 3000)
+      isTyping.value = false;
+    }, 3000);
   }
-}
+};
 
 const handleRemoteStopTyping = (event: CustomEvent) => {
-  const data = event.detail
+  const data = event.detail;
   if (data.fromUserId === friendId) {
-    isTyping.value = false
-    if (typingTimeout.value) clearTimeout(typingTimeout.value)
+    isTyping.value = false;
+    if (typingTimeout.value) clearTimeout(typingTimeout.value);
   }
-}
+};
 
 const onInput = () => {
-  if (emitTypingTimeout.value) clearTimeout(emitTypingTimeout.value)
-  
-  socketService.sendTyping(friendId)
-  
+  if (emitTypingTimeout.value) clearTimeout(emitTypingTimeout.value);
+
+  socketService.sendTyping(friendId);
+
   emitTypingTimeout.value = setTimeout(() => {
-    socketService.sendStopTyping(friendId)
-  }, 2000)
-}
+    socketService.sendStopTyping(friendId);
+  }, 2000);
+};
 
 onMounted(async () => {
-  await loadFriend()
-  await loadMessages()
-  scrollToBottom()
-  
+  await loadFriend();
+  await loadMessages();
+  scrollToBottom();
+
   // Listen for real-time messages
-  window.addEventListener('chat:new-message', handleNewMessage as EventListener)
-  window.addEventListener('chat:typing', handleRemoteTyping as EventListener)
-  window.addEventListener('chat:stop-typing', handleRemoteStopTyping as EventListener)
-})
+  window.addEventListener('chat:new-message', handleNewMessage as EventListener);
+  window.addEventListener('chat:typing', handleRemoteTyping as EventListener);
+  window.addEventListener('chat:stop-typing', handleRemoteStopTyping as EventListener);
+});
 
 onUnmounted(() => {
   // Cleanup event listener
-  window.removeEventListener('chat:new-message', handleNewMessage as EventListener)
-  window.removeEventListener('chat:typing', handleRemoteTyping as EventListener)
-  window.removeEventListener('chat:stop-typing', handleRemoteStopTyping as EventListener)
-})
+  window.removeEventListener('chat:new-message', handleNewMessage as EventListener);
+  window.removeEventListener('chat:typing', handleRemoteTyping as EventListener);
+  window.removeEventListener('chat:stop-typing', handleRemoteStopTyping as EventListener);
+});
 
 const loadFriend = async () => {
   try {
-    const response = await axios.get(`/users/${friendId}`)
-    user.value = response.data.user
+    const response = await axios.get(`/users/${friendId}`);
+    user.value = response.data.user;
   } catch (error) {
-    console.error('Failed to load friend:', error)
+    console.error('Failed to load friend:', error);
   }
-}
+};
 
 const loadMessages = async () => {
-  try {
-    const response = await axios.get(`/chat/conversation/${friendId}`)
-    messages.value = response.data.messages || []
-  } catch (error) {
-    console.error('Failed to load messages:', error)
-  } finally {
-    loading.value = false
+  const userStore = useUserStore();
+  const myUserId = userStore.user?.id;
+
+  if (!myUserId) {
+    loading.value = false;
+    return;
   }
-}
+
+  try {
+    // 1. Offline First: check local DB
+    try {
+      const localMessages = await getMessagesByFriendId(friendId, myUserId);
+      if (localMessages.length > 0) {
+        messages.value = localMessages;
+        nextTick(scrollToBottom);
+      }
+    } catch (err) {
+      console.warn('DB Load failed:', err);
+    }
+
+    const response = await axios.get(`/chat/conversation/${friendId}`);
+    const remoteMessages = Array.isArray(response.data)
+      ? response.data
+      : response.data.messages || [];
+
+    // 2. Persist to local DB
+    for (const msg of remoteMessages) {
+      saveMessage({
+        ...msg,
+        to_user_id: msg.is_from_me ? friendId : myUserId,
+        from_user_id: msg.is_from_me ? myUserId : friendId,
+      }).catch((err) => console.error('Failed to sync to local DB:', err));
+    }
+
+    // 3. Final refresh
+    if (remoteMessages.length > 0) {
+      try {
+        messages.value = await getMessagesByFriendId(friendId, myUserId);
+      } catch (e) {
+        messages.value = remoteMessages;
+      }
+    } else {
+      try {
+        messages.value = await getMessagesByFriendId(friendId, myUserId);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    nextTick(scrollToBottom);
+  } catch (error) {
+    console.error('Failed to load messages:', error);
+  } finally {
+    loading.value = false;
+  }
+};
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim()) return
+  if (!newMessage.value.trim()) return;
 
-  const messageContent = newMessage.value.trim()
-  newMessage.value = ''
+  const messageContent = newMessage.value.trim();
+  newMessage.value = '';
 
   // Add optimistic message
-  messages.value.push({
+  const userStore = useUserStore();
+  const myUserId = userStore.user?.id;
+  const tempMsg = {
     id: 'temp-' + Date.now(),
     content: messageContent,
+    from_user_id: myUserId,
+    to_user_id: friendId,
     is_from_me: true,
-    created_at: new Date().toISOString()
-  })
-  
-  await nextTick()
-  scrollToBottom()
+    created_at: new Date().toISOString(),
+  };
+
+  messages.value.push(tempMsg);
+
+  // Save to local DB
+  saveMessage(tempMsg).catch((err) => console.error('Failed to save sent message to DB:', err));
+
+  await nextTick();
+  scrollToBottom();
 
   // Send via WebSocket for real-time delivery
-  socketService.sendChatMessage(friendId, messageContent)
+  socketService.sendChatMessage(friendId, messageContent);
 
   // Also save to database via HTTP
   try {
     await axios.post(`/chat/send`, {
       toUserId: friendId,
-      content: messageContent
-    })
+      content: messageContent,
+    });
   } catch (error) {
-    console.error('Failed to save message to DB:', error)
+    console.error('Failed to save message to DB:', error);
   }
-}
+};
 
 const scrollToBottom = () => {
   if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
   }
-}
+};
 
 const formatTime = (date: string) => {
-  return new Date(date).toLocaleTimeString('fr-FR', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  })
-}
+  return new Date(date).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 </script>
 
 <template>
   <div class="chat-page">
     <!-- Chat Header -->
     <header class="chat-header">
-      <RouterLink to="/home" class="back-button">
-        ←
-      </RouterLink>
+      <RouterLink to="/home" class="back-button"> ← </RouterLink>
       <div v-if="user" class="friend-info">
-        <img 
-          :src="user.profile_pic || '/assets/images/default-game.svg'" 
+        <img
+          :src="user.profile_pic || '/assets/images/default-game.svg'"
           :alt="user.username"
           class="friend-avatar"
-        >
+        />
         <div class="friend-details">
           <h2>{{ user.username }}</h2>
           <span class="status online">● En ligne</span>
@@ -167,15 +222,13 @@ const formatTime = (date: string) => {
 
     <!-- Messages Container -->
     <div ref="messagesContainer" class="messages-container">
-      <div v-if="loading" class="loading">
-        Chargement des messages...
-      </div>
+      <div v-if="loading" class="loading">Chargement des messages...</div>
       <div v-else-if="messages.length === 0" class="empty-state">
         Aucun message. Commencez la conversation !
       </div>
       <div v-else class="messages-list">
-        <div 
-          v-for="message in messages" 
+        <div
+          v-for="message in messages"
           :key="message.id"
           :class="['message', message.is_from_me ? 'message-mine' : 'message-theirs']"
         >
@@ -184,7 +237,7 @@ const formatTime = (date: string) => {
             <span class="message-time">{{ formatTime(message.created_at) }}</span>
           </div>
         </div>
-        
+
         <!-- Typing Indicator -->
         <div v-if="isTyping" class="typing-indicator">
           <span>{{ user?.username }} est en train d'écrire...</span>
@@ -195,17 +248,15 @@ const formatTime = (date: string) => {
     <!-- Message Input -->
     <div class="message-input-container">
       <form @submit.prevent="sendMessage" class="message-form">
-        <input 
+        <input
           v-model="newMessage"
           @input="onInput"
-          type="text" 
+          type="text"
           placeholder="Écrivez votre message..."
           class="message-input"
           maxlength="500"
-        >
-        <button type="submit" class="send-button" :disabled="!newMessage.trim()">
-          Envoyer
-        </button>
+        />
+        <button type="submit" class="send-button" :disabled="!newMessage.trim()">Envoyer</button>
       </form>
     </div>
   </div>
@@ -282,7 +333,8 @@ const formatTime = (date: string) => {
   background: #1a1a1a;
 }
 
-.loading, .empty-state {
+.loading,
+.empty-state {
   text-align: center;
   color: #888;
   padding: 40px 20px;
@@ -344,8 +396,12 @@ const formatTime = (date: string) => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .message-input-container {

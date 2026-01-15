@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useFriendsStore } from '../stores/friendsStore';
 import { useToastStore } from '../stores/toastStore';
 import { useGroupStore } from '../stores/groupStore';
 import { socketService } from '../services/socket';
+import { useUserStore } from '../stores/userStore';
+import { getMessagesByFriendId, saveMessage } from '../services/db';
 import UserAutocomplete from '../components/UserAutocomplete.vue';
 
 const friendsStore = useFriendsStore();
 const toastStore = useToastStore();
 const groupStore = useGroupStore();
-const router = useRouter();
 const activeTab = ref('friends'); // 'friends', 'requests', 'groups', 'add_friend'
 const searchQuery = ref('');
 const addFriendQuery = ref('');
@@ -115,7 +115,7 @@ const sendGroupMessage = () => {
   groupMessage.value = '';
 };
 
-const handleAddFriendFromGroup = async (userId: string, username: string) => {
+const handleAddFriendFromGroup = async (_userId: string, username: string) => {
   try {
     await friendsStore.sendFriendRequest(username);
     toastStore.success(`Friend request sent to ${username}`);
@@ -146,9 +146,52 @@ const openChat = async (friendId: string) => {
 };
 
 const loadPrivateMessages = async (friendId: string) => {
+  const userStore = useUserStore();
+  const myUserId = userStore.user?.id;
+
+  if (!myUserId) return;
+
   try {
+    // 1. Offline First: check local DB
+    try {
+      const localMessages = await getMessagesByFriendId(friendId, myUserId);
+      if (localMessages.length > 0) {
+        privateMessages.value = localMessages;
+        nextTick(scrollToPrivateBottom);
+      }
+    } catch (dbErr) {
+      console.warn('DB Load failed:', dbErr);
+    }
+
     const response = await axios.get(`/chat/conversation/${friendId}`);
-    privateMessages.value = response.data.messages || [];
+    const remoteMessages = Array.isArray(response.data)
+      ? response.data
+      : response.data.messages || [];
+
+    // 2. Persist to local DB
+    for (const msg of remoteMessages) {
+      saveMessage({
+        ...msg,
+        to_user_id: msg.is_from_me ? friendId : myUserId,
+        from_user_id: msg.is_from_me ? myUserId : friendId,
+      }).catch((err) => console.error('Failed to sync to local DB:', err));
+    }
+
+    // 3. Final refresh
+    if (remoteMessages.length > 0) {
+      try {
+        privateMessages.value = await getMessagesByFriendId(friendId, myUserId);
+      } catch (e) {
+        privateMessages.value = remoteMessages;
+      }
+    } else {
+      try {
+        privateMessages.value = await getMessagesByFriendId(friendId, myUserId);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    nextTick(scrollToPrivateBottom);
   } catch (e: any) {
     console.error('Failed to load messages', e);
     toastStore.error('Failed to load conversation');
@@ -161,16 +204,25 @@ const sendPrivateMessage = async () => {
   privateMessageInput.value = '';
 
   // Optimistic UI
-  privateMessages.value.push({
+  const userStore = useUserStore();
+  const myUserId = userStore.user?.id;
+  const tempMsg = {
     id: 'temp-' + Date.now(),
     content,
+    from_user_id: myUserId,
+    to_user_id: activeFriend.value.id,
     is_from_me: true,
     created_at: new Date().toISOString(),
     user: { username: 'Me' },
-  });
+  };
+
+  privateMessages.value.push(tempMsg);
 
   await nextTick();
   scrollToPrivateBottom();
+
+  // Save to local DB
+  saveMessage(tempMsg).catch((err) => console.error('Failed to save sent message local:', err));
 
   socketService.sendChatMessage(activeFriend.value.id, content);
 
