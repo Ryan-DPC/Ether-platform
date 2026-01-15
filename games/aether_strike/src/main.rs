@@ -19,7 +19,7 @@ mod input;
 mod draw;
 mod server;
 mod backend;
-mod waves;
+pub mod waves;
 mod modules; // New Module Hub
 mod network_handler;
 mod combat_system;
@@ -611,10 +611,13 @@ async fn main() {
                             // Generate Wave 1 Enemies
                             let mut init_enemies = Vec::new();
                             let temp_wm = waves::WaveManager::new(); // Just to get Wave 1 data
-                            if let Some(wave) = temp_wm.waves.get(0) { // Wave 1
-                                println!("Host: Found Wave 1 with {} enemies", wave.enemies.len());
-                                for (stats, kind, _pos) in &wave.enemies {
-                                     let e = Enemy::new(*_pos, kind.clone(), stats.clone());
+                                if let Some(wave) = temp_wm.waves.get(0) { // Wave 1
+                                    println!("Host: Found Wave 1 with {} enemies", wave.enemies.len());
+                                    for (stats, kind, _pos) in &wave.enemies {
+                                         let e = Enemy::new(*_pos, kind.clone(), stats.clone());
+                                     // ADD TO LOCAL BACKUP
+                                     _enemies.push(e.clone());
+                                     
                                      init_enemies.push(network_client::EnemyData {
                                          id: e.id,
                                          name: e.name,

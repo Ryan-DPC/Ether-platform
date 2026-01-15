@@ -80,11 +80,27 @@ impl NetworkHandler {
                     *selected_class = Some(p_class.clone());
                     *game_state = Some(GameState::new(p_class.clone()));
                     
-                    enemies.clear();
-                    *enemy_boss = None;
-                    let (synced_enemies, boss_ref) = enemy_model::from_server_data(&server_enemies, screen_width, screen_height);
-                    *enemies = synced_enemies;
-                    *enemy_boss = boss_ref;
+                    if !server_enemies.is_empty() {
+                        enemies.clear();
+                        *enemy_boss = None;
+                        let (synced_enemies, boss_ref) = enemy_model::from_server_data(&server_enemies, screen_width, screen_height);
+                        *enemies = synced_enemies;
+                        *enemy_boss = boss_ref;
+                    } else if !enemies.is_empty() {
+                         println!("NET-RX: Server sent EMPTY enemies. Using LOCAL BACKUP ({} enemies).", enemies.len());
+                    } else {
+                         println!("NET-RX: No enemies source found. Attempting EMERGENCY GENERATION...");
+                         let temp_wm = crate::waves::WaveManager::new();
+                         if let Some(wave) = temp_wm.waves.get(0) {
+                             for (stats, kind, _pos) in &wave.enemies {
+                                 let e = Enemy::new(*_pos, kind.clone(), stats.clone());
+                                 enemies.push(e);
+                             }
+                             println!("NET-RX: Generated {} emergency enemies. Multiplayer sync might be imperfect.", enemies.len());
+                         } else {
+                             println!("NET-RX: Fatal - Could not generate enemies.");
+                         }
+                    }
 
                     turn_system.init_queue(
                         &player_profile.vext_username,
