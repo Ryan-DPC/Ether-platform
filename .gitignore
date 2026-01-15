@@ -36,20 +36,19 @@ yarn-error.log*
 .env.frontend
 
 # Rust / Game Development
-# Ignore Rust build artifacts
-games/**/target/
-games/**/Cargo.lock
+target/
+**/target/
+**/*.rs.bk
 
-# Ignore Rust incremental compilation
-games/**/*.rs.bk
+# Executables
+*.exe
+*.dll
+*.pdb
 
-# Ignore game distribution folders
-games/**/dist/
-games/**/*.zip
-games/**/*.exe
+# Assets cache (if any)
+**/.thumbs
 
-# But keep source code
-!games/**/src/
-!games/**/Cargo.toml
-!games/**/*.md
-!games/**/*.rs
+# General
+.DS_Store
+*.swp
+
