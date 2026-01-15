@@ -66,12 +66,6 @@ jobs:
           # Copy Exe
           Copy-Item $exe_path -Destination "dist/"
           
-          # Copy Config
-          if (Test-Path "server_config.txt") {
-              Copy-Item "server_config.txt" -Destination "dist/"
-          } else {
-              Write-Warning "server_config.txt not found!"
-          }
           
           # Copy Assets
           if (Test-Path "assets") {
