@@ -23,6 +23,8 @@ pub fn run() {
         )?;
       }
 
+      app.handle().plugin(tauri_plugin_sql::Builder::default().build())?;
+
       use tauri::menu::{Menu, MenuItem};
       use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 

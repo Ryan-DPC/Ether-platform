@@ -4,6 +4,7 @@ import { useLobbyStore } from '../stores/lobbyStore';
 import { useToastStore } from '../stores/toastStore';
 import { useUserStore } from '../stores/userStore';
 import { useNotificationStore } from '../stores/notificationStore';
+import { saveMessage } from './db';
 import router from '../router';
 
 // Get WebSocket URL based on environment
@@ -148,6 +149,14 @@ class SocketService {
     // Chat events
     this.socket.on('chat:message-received', (data: any) => {
       console.log('📡 Chat message received:', data);
+
+      // Save to local DB (Offline First)
+      saveMessage({
+        ...data,
+        is_from_me: false,
+        to_user_id: useUserStore().user?.id,
+      }).catch((err) => console.error('Failed to save message to DB:', err));
+
       // Will be handled by Chat.vue component
       window.dispatchEvent(new CustomEvent('chat:new-message', { detail: data }));
 
