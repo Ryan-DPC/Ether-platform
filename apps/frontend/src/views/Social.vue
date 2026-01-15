@@ -546,14 +546,27 @@ const handlePrivateMessage = (event: CustomEvent) => {
 
           <!-- Group Chat -->
           <div v-if="activeTab === 'groups' && groupStore.activeGroup" class="group-chat-panel">
-            <div class="chat-header">
-              <div class="chat-header-info">
-                <h3>{{ groupStore.activeGroup?.name }}</h3>
-                <p>{{ groupStore.activeGroup?.members?.length }} members</p>
+            <div class="chat-header-modern">
+              <div class="chat-header-left">
+                <div class="group-icon-header">
+                  <i class="fas fa-users"></i>
+                </div>
+                <div class="header-info">
+                  <h3>{{ groupStore.activeGroup?.name }}</h3>
+                  <span class="header-subtitle"
+                    >{{ groupStore.activeGroup?.members?.length }} members</span
+                  >
+                </div>
               </div>
-              <button class="btn-icon" @click="showGroupSidebar = !showGroupSidebar">
-                <i class="fas fa-users"></i>
-              </button>
+              <div class="chat-header-actions">
+                <button
+                  class="btn-action-ghost"
+                  @click="showGroupSidebar = !showGroupSidebar"
+                  title="Members"
+                >
+                  <i class="fas fa-user-friends"></i>
+                </button>
+              </div>
             </div>
             <div class="chat-messages" ref="groupMessagesContainer">
               <div
@@ -1880,6 +1893,24 @@ const handlePrivateMessage = (event: CustomEvent) => {
 .btn-action-ghost:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--neon-pink);
+}
+
+.group-icon-header {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 126, 179, 0.2), rgba(122, 252, 255, 0.2));
+  border: 1px solid rgba(255, 126, 179, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neon-pink);
+  font-size: 1rem;
+}
+
+.header-subtitle {
+  font-size: 0.75rem;
+  color: #888;
 }
 
 .chat-messages {
