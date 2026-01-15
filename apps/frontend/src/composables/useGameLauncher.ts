@@ -53,7 +53,7 @@ export function useGameLauncher() {
       }
 
       // Prepare User Data
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const plainUser = userStore.user ? JSON.parse(JSON.stringify(userStore.user)) : null;
       const plainFriends = friendsStore.friends
         ? JSON.parse(JSON.stringify(friendsStore.friends))
