@@ -1,24 +1,11 @@
 use serde::{Deserialize, Serialize};
 use reqwest::blocking::Client;
 
-use std::fs;
+
 use std::net::UdpSocket;
 
-// Default to localhost, but try to read from config file
+// Default to prod, hardcoded as requested
 pub fn get_api_url() -> String {
-    if let Ok(url) = fs::read_to_string("server_config.txt") {
-        let mut trimmed = url.trim().to_string();
-        if trimmed.ends_with("/api") {
-            trimmed = trimmed.replace("/api", "");
-        }
-        if trimmed.ends_with('/') {
-            trimmed.pop(); 
-        }
-
-        if !trimmed.is_empty() {
-             return format!("{}/api/lobby/multiplayer", trimmed);
-        }
-    }
     "https://vext-backend-yj77.onrender.com/api/lobby/multiplayer".to_string()
 }
 

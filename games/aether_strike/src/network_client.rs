@@ -191,296 +191,305 @@ fn ws_thread_loop(
 ) -> Result<(), String> {
     // Connexion WebSocket
     // Connexion WebSocket
-    // Remove /api suffix if present to avoid 400 Bad Request
-    let clean_url = if url.ends_with("/api") {
-        url.replace("/api", "")
-    } else {
-        url
-    };
-
-    let mut final_url = clean_url.clone();
-    
-    // Manually ensure token is present in query string
-    if !final_url.contains("token=") {
-        if final_url.contains('?') {
-            final_url.push_str(&format!("&token={}", token));
-        } else {
-            final_url.push_str(&format!("?token={}", token));
-        }
-    }
-
-    let url_parsed = Url::parse(&final_url).map_err(|e| format!("Invalid URL: {}", e))?;
-    println!("🔌 Attempting to connect to WS: {}", final_url);
-
-    // Build request with headers to mimic browser/frontend
-    let mut request = url_parsed.into_client_request()
-        .map_err(|e| format!("Failed to build request: {}", e))?;
-    
-    // Some servers/middlewares (like CORS) require Origin header
-    // Some servers/middlewares (like CORS) require Origin header
-    request.headers_mut().insert("Origin", "https://vext-frontend.onrender.com".parse().unwrap());
-    
-    let (mut socket, _response) = connect(request)
-        .map_err(|e| format!("Connection failed: {}", e))?;
-
-    // --- MISE EN PLACE DU NODE NON-BLOQUANT ---
-    // C'est CRITIQUE pour que la boucle ne bloque pas sur socket.read()
-    // et puisse envoyer les inputs du joueur.
-    match socket.get_mut() {
-        tungstenite::stream::MaybeTlsStream::Plain(s) => s.set_nonblocking(true),
-        tungstenite::stream::MaybeTlsStream::Rustls(s) => s.get_mut().set_nonblocking(true),
-        _ => Ok(()),
-    }.map_err(|e| format!("Failed to set non-blocking: {}", e))?;
-
-    println!("✅ WebSocket connected (Non-blocking)");
-
-    // Rejoindre ou Créer la partie
-    let join_type = if is_host { "aether-strike:create-game" } else { "aether-strike:join-game" };
-    let join_msg = serde_json::json!({
-        "type": join_type,
-        "data": {
-            "gameId": game_id,
-            "playerClass": player_class,
-            "maxPlayers": 4
-        }
-    });
-    
-    // On envoie le join (Write n'est pas bloquant en général pour des petits messages)
-    socket.send(Message::Text(join_msg.to_string()))
-        .map_err(|e| format!("Failed to initiate game: {}", e))?;
-
-    println!("🎮 {} game: {}", if is_host { "Created" } else { "Joined" }, game_id);
-
-    let mut last_ping = std::time::Instant::now();
-    let ping_interval = std::time::Duration::from_secs(10); // Ping toutes les 10s
-
-    // Boucle principale
+    // Outer Loop for Reconnection
     loop {
-        // 0. Keep-Alive / Ping
-        if last_ping.elapsed() > ping_interval {
-            // Envoyer un Ping pour garder la connexion active
-            if let Err(e) = socket.send(Message::Ping(vec![])) {
-                println!("⚠️ Failed to send Ping: {}", e);
-                // On ne quitte pas forcément, la lecture détectera la coupure
-            }
-            last_ping = std::time::Instant::now();
-        }
+        // Remove /api suffix if present
+        let clean_url = if url.ends_with("/api") {
+            url.replace("/api", "")
+        } else {
+            url.clone()
+        };
 
-        // 1. Traiter les commandes du jeu (non-bloquant)
-        while let Ok(cmd) = rx_commands.try_recv() {
-            match cmd {
-                WsCommand::Connect => {
-                     // Handled in main connect logic, no-op here if sent
-                }
-                WsCommand::SendInput { position, velocity, action } => {
-
-                    let msg = serde_json::json!({
-                        "type": "aether-strike:player-input",
-                        "data": {
-                            "position": [position.0, position.1],
-                            "velocity": [velocity.0, velocity.1],
-                            "action": action
-                        }
-                    });
-                    // Ignorer WouldBlock sur l'écriture pour l'instant (rare sur des petits paquets)
-                    let _ = socket.send(Message::Text(msg.to_string()));
-                }
-                WsCommand::StartGame { enemies } => {
-                     let msg = serde_json::json!({
-                         "type": "aether-strike:start-game",
-                         "enemies": enemies,
-                         "payload": { "enemies": enemies },
-                         "data": { "enemies": enemies }
-                     });
-                     if let Err(e) = socket.send(Message::Text(msg.to_string())) {
-                         eprintln!("WS send error: {}", e);
-                     }
-                }
-                WsCommand::UseAttack { attack_name, target_id } => {
-                    let msg = serde_json::json!({
-                        "type": "aether-strike:use-attack",
-                        "data": {
-                            "attackName": attack_name,
-                            "targetId": target_id
-                        }
-                    });
-                    let _ = socket.send(Message::Text(msg.to_string()));
-                }
-                WsCommand::EndTurn => {
-                    let msg = serde_json::json!({
-                        "type": "aether-strike:end-turn",
-                        "data": {}
-                    });
-                    let _ = socket.send(Message::Text(msg.to_string()));
-                }
-                WsCommand::Flee => {
-                    let msg = serde_json::json!({
-                        "type": "aether-strike:flee",
-                        "data": {}
-                    });
-                    let _ = socket.send(Message::Text(msg.to_string()));
-                }
-                WsCommand::ChangeClass { new_class } => {
-                    let msg = serde_json::json!({
-                        "type": "aether-strike:change-class",
-                        "newClass": new_class,
-                        "data": { "newClass": new_class },
-                        "payload": { "newClass": new_class }
-                    });
-                    let _ = socket.send(Message::Text(msg.to_string()));
-                }
-                WsCommand::Disconnect => {
-                    let leave_msg = serde_json::json!({
-                        "type": "aether-strike:leave-game",
-                        "data": {}
-                    });
-                    let _ = socket.send(Message::Text(leave_msg.to_string()));
-                    return Ok(());
-                }
+        let mut final_url = clean_url.clone();
+        
+        // Manually ensure token is present in query string
+        if !final_url.contains("token=") {
+            if final_url.contains('?') {
+                final_url.push_str(&format!("&token={}", token));
+            } else {
+                final_url.push_str(&format!("?token={}", token));
             }
         }
 
-        // 2. Lire les messages du serveur (non-bloquant)
-        match socket.read() {
-            Ok(msg) => {
-                match msg {
-                    Message::Text(text) => {
-                        println!("WS-RAW: {}", text); // DEBUG: LOG EVERYTHING
-                        if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
-                            if let Some(event_type) = parsed["type"].as_str() {
-                                let data = &parsed["data"];
-                                // ... (Parsing logic same as before) ...
-                                let game_event = match event_type {
-                                    "aether-strike:player-joined" => {
-                                        Some(GameEvent::PlayerJoined {
-                                            player_id: data["playerId"].as_str().unwrap_or("").to_string(),
-                                            username: data["username"].as_str().unwrap_or("Unknown").to_string(),
-                                            class: data["class"].as_str().unwrap_or("warrior").to_string(),
-                                        })
-                                    }
-                                    "aether-strike:game-state" => {
-                                        println!("NET-RX: Received GameState RAW: {:?}", data); // DEBUG
-                                        let mut players = Vec::new();
-                                        if let Some(players_val) = data["players"].as_array() {
-                                            for p in players_val {
-                                                println!("  - Parse Player: {:?}", p); // DEBUG
-                                                players.push(RemotePlayer {
-                                                    userId: p["userId"].as_str().unwrap_or("").to_string(),
-                                                    username: p["username"].as_str().unwrap_or("Unknown").to_string(),
-                                                    class: p["class"].as_str().unwrap_or("warrior").to_string(),
-                                                    position: (
-                                                        p["position"]["x"].as_f64().unwrap_or(0.0) as f32,
-                                                        p["position"]["y"].as_f64().unwrap_or(0.0) as f32,
-                                                    ),
-                                                });
-                                            }
-                                        } else {
-                                             println!("NET-RX: ERROR 'players' not found or not array in GameState");
-                                        }
-                                        Some(GameEvent::GameState {
-                                            players,
-                                            host_id: data["hostId"].as_str().unwrap_or("").to_string(),
-                                        })
-                                    }
-                                    "aether-strike:new-host" => {
-                                        Some(GameEvent::NewHost {
-                                            host_id: data["hostId"].as_str().unwrap_or("").to_string(),
-                                        })
-                                    }
-                                    "aether-strike:player-left" => {
-                                        Some(GameEvent::PlayerLeft {
-                                            player_id: data["playerId"].as_str().unwrap_or("").to_string(),
-                                        })
-                                    }
-                                    "aether-strike:player-updated" => {
-                                        println!("📥 Received player-updated: {:?}", data);
-                                        Some(GameEvent::PlayerUpdated {
-                                            player_id: data["playerId"].as_str().unwrap_or("").to_string(),
-                                            class: data["class"].as_str().unwrap_or("warrior").to_string(),
-                                        })
-                                    }
-                                    "aether-strike:player-update" => {
-                                        let position = if let Some(pos_arr) = data["position"].as_array() {
-                                            Some((
-                                                pos_arr[0].as_f64().unwrap_or(0.0) as f32,
-                                                pos_arr[1].as_f64().unwrap_or(0.0) as f32,
-                                            ))
-                                        } else {
-                                            None
-                                        };
-                                        
-                                        Some(GameEvent::PlayerUpdate(PlayerUpdate {
-                                            player_id: data["playerId"].as_str().unwrap_or("").to_string(),
-                                            position,
-                                            velocity: None,
-                                            action: data["action"].as_str().map(|s| s.to_string()),
-                                        }))
-                                    }
-                                    "aether-strike:combat-action" => {
-                                        Some(GameEvent::CombatAction {
-                                            actor_id: data["actorId"].as_str().unwrap_or("").to_string(),
-                                            target_id: data["targetId"].as_str().map(|s| s.to_string()),
-                                            action_name: data["actionName"].as_str().unwrap_or("").to_string(),
-                                            damage: data["damage"].as_f64().unwrap_or(0.0) as f32,
-                                            mana_cost: data["manaCost"].as_u64().unwrap_or(0) as u32,
-                                            is_area: data["isArea"].as_bool().unwrap_or(false),
-                                        })
-                                    }
-                                    "aether-strike:turn-changed" => {
-                                        Some(GameEvent::TurnChanged {
-                                            current_turn_id: data["currentTurnId"].as_str().unwrap_or("").to_string(),
-                                        })
-                                    }
-                                    "aether-strike:game-started" => {
-                                        println!("RAW GameStarted Data: {:?}", data);
-                                        // Deserialize enemies
-                                        let enemies_json = data["enemies"].as_array();
-                                        let mut enemies_list = Vec::new();
-                                        if let Some(arr) = enemies_json {
-                                            for val in arr {
-                                                match serde_json::from_value::<EnemyData>(val.clone()) {
-                                                    Ok(enemy) => enemies_list.push(enemy),
-                                                    Err(e) => println!("ERROR Parsing Enemy: {} - JSON: {:?}", e, val)
-                                                }
-                                            }
-                                        } else {
-                                            println!("ERROR: 'enemies' field not found or not an array in {:?}", data);
-                                        }
-                                        Some(GameEvent::GameStarted { enemies: enemies_list })
-                                    }
-                                    _ => None
-                                };
+        let url_parsed = match Url::parse(&final_url) {
+            Ok(u) => u,
+            Err(e) => {
+                eprintln!("Invalid URL in loop: {}", e);
+                // If URL is invalid, retrying won't help. Break.
+                return Err(format!("Invalid URL: {}", e));
+            }
+        };
 
-                                if let Some(event) = game_event {
-                                    let _ = tx_events.send(event);
-                                }
+        println!("🔌 Attempting to connect to WS: {}", final_url);
+
+        // Build request with headers to mimic browser/frontend
+        let request_res = url_parsed.into_client_request();
+        if let Err(e) = request_res {
+             eprintln!("Failed to build request: {}", e);
+             std::thread::sleep(std::time::Duration::from_secs(5));
+             continue; 
+        }
+        let mut request = request_res.unwrap();
+        
+        request.headers_mut().insert("Origin", "https://vext-frontend.onrender.com".parse().unwrap());
+        
+        match connect(request) {
+            Ok((mut socket, _)) => {
+                 // --- MISE EN PLACE DU NODE NON-BLOQUANT ---
+                if let Err(e) = match socket.get_mut() {
+                    tungstenite::stream::MaybeTlsStream::Plain(s) => s.set_nonblocking(true),
+                    tungstenite::stream::MaybeTlsStream::Rustls(s) => s.get_mut().set_nonblocking(true),
+                    _ => Ok(()),
+                } {
+                    eprintln!("Failed to set non-blocking: {}", e);
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    continue;
+                }
+
+                println!("✅ WebSocket connected (Non-blocking)");
+                let _ = tx_events.send(GameEvent::Error("Connected".to_string())); // Notify game we are back
+
+                // Rejoindre ou Créer la partie (Re-join on reconnect)
+                let join_type = if is_host { "aether-strike:create-game" } else { "aether-strike:join-game" };
+                let join_msg = serde_json::json!({
+                    "type": join_type,
+                    "data": {
+                        "gameId": game_id,
+                        "playerClass": player_class,
+                        "maxPlayers": 4
+                    }
+                });
+                
+                if let Err(e) = socket.send(Message::Text(join_msg.to_string())) {
+                     eprintln!("Failed to initiate game: {}", e);
+                     // If we can't send join, socket is dead.
+                     std::thread::sleep(std::time::Duration::from_secs(2));
+                     continue;
+                }
+
+                println!("🎮 {} game: {}", if is_host { "Created" } else { "Joined" }, game_id);
+
+                let mut last_ping = std::time::Instant::now();
+                let ping_interval = std::time::Duration::from_secs(5); // More frequent ping (5s)
+
+                // Inner Loop (Connected State)
+                loop {
+                    // 0. Keep-Alive / Ping
+                    if last_ping.elapsed() > ping_interval {
+                        if let Err(e) = socket.send(Message::Ping(vec![])) {
+                            println!("⚠️ Failed to send Ping: {}", e);
+                            // Connection likely dead, break to outer loop to reconnect
+                            break;
+                        }
+                        last_ping = std::time::Instant::now();
+                    }
+
+                    // 1. Traiter les commandes du jeu
+                    while let Ok(cmd) = rx_commands.try_recv() {
+                        match cmd {
+                            WsCommand::Connect => {}
+                            WsCommand::SendInput { position, velocity, action } => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:player-input",
+                                    "data": {
+                                        "position": [position.0, position.1],
+                                        "velocity": [velocity.0, velocity.1],
+                                        "action": action
+                                    }
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::StartGame { enemies } => {
+                                 let msg = serde_json::json!({
+                                     "type": "aether-strike:start-game",
+                                     "enemies": enemies,
+                                     "payload": { "enemies": enemies },
+                                     "data": { "enemies": enemies }
+                                 });
+                                 let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::UseAttack { attack_name, target_id } => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:use-attack",
+                                    "data": {
+                                        "attackName": attack_name,
+                                        "targetId": target_id
+                                    }
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::EndTurn => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:end-turn",
+                                    "data": {}
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::Flee => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:flee",
+                                    "data": {}
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::ChangeClass { new_class } => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:change-class",
+                                    "newClass": new_class,
+                                    "data": { 
+                                        "newClass": new_class.clone(),
+                                        "class": new_class // FIX: Added 'class' so receiver finds it
+                                    },
+                                    "payload": { "newClass": new_class }
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::Disconnect => {
+                                let leave_msg = serde_json::json!({
+                                    "type": "aether-strike:leave-game",
+                                    "data": {}
+                                });
+                                let _ = socket.send(Message::Text(leave_msg.to_string()));
+                                return Ok(()); // Actually exit thread
                             }
                         }
                     }
-                    Message::Ping(_) | Message::Pong(_) => {
-                        // Handled automatically by tungstenite usually, but good to know
+
+                    // 2. Lire les messages
+                    match socket.read() {
+                        Ok(msg) => {
+                            match msg {
+                                Message::Text(text) => {
+                                    // println!("WS-RAW: {}", text); // Reduce spam unless debugging
+                                    if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
+                                        if let Some(event_type) = parsed["type"].as_str() {
+                                            let data = &parsed["data"];
+                                            let game_event = match event_type {
+                                                "aether-strike:player-joined" => {
+                                                    Some(GameEvent::PlayerJoined {
+                                                        player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                                        username: data["username"].as_str().unwrap_or("Unknown").to_string(),
+                                                        class: data["class"].as_str().unwrap_or("warrior").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:game-state" => {
+                                                    let mut players = Vec::new();
+                                                    if let Some(players_val) = data["players"].as_array() {
+                                                        for p in players_val {
+                                                            players.push(RemotePlayer {
+                                                                userId: p["userId"].as_str().unwrap_or("").to_string(),
+                                                                username: p["username"].as_str().unwrap_or("Unknown").to_string(),
+                                                                class: p["class"].as_str().unwrap_or("warrior").to_string(),
+                                                                position: (
+                                                                    p["position"]["x"].as_f64().unwrap_or(0.0) as f32,
+                                                                    p["position"]["y"].as_f64().unwrap_or(0.0) as f32,
+                                                                ),
+                                                            });
+                                                        }
+                                                    }
+                                                    Some(GameEvent::GameState {
+                                                        players,
+                                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:new-host" => {
+                                                    Some(GameEvent::NewHost {
+                                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:player-left" => {
+                                                    Some(GameEvent::PlayerLeft {
+                                                        player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:player-updated" => {
+                                                    println!("📥 Received player-updated: {:?}", data);
+                                                    Some(GameEvent::PlayerUpdated {
+                                                        player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                                        class: data["class"].as_str().unwrap_or("warrior").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:player-update" => {
+                                                    let position = if let Some(pos_arr) = data["position"].as_array() {
+                                                        Some((
+                                                            pos_arr[0].as_f64().unwrap_or(0.0) as f32,
+                                                            pos_arr[1].as_f64().unwrap_or(0.0) as f32,
+                                                        ))
+                                                    } else {
+                                                        None
+                                                    };
+                                                    
+                                                    Some(GameEvent::PlayerUpdate(PlayerUpdate {
+                                                        player_id: data["playerId"].as_str().unwrap_or("").to_string(),
+                                                        position,
+                                                        velocity: None,
+                                                        action: data["action"].as_str().map(|s| s.to_string()),
+                                                    }))
+                                                }
+                                                "aether-strike:combat-action" => {
+                                                    Some(GameEvent::CombatAction {
+                                                        actor_id: data["actorId"].as_str().unwrap_or("").to_string(),
+                                                        target_id: data["targetId"].as_str().map(|s| s.to_string()),
+                                                        action_name: data["actionName"].as_str().unwrap_or("").to_string(),
+                                                        damage: data["damage"].as_f64().unwrap_or(0.0) as f32,
+                                                        mana_cost: data["manaCost"].as_u64().unwrap_or(0) as u32,
+                                                        is_area: data["isArea"].as_bool().unwrap_or(false),
+                                                    })
+                                                }
+                                                "aether-strike:turn-changed" => {
+                                                    Some(GameEvent::TurnChanged {
+                                                        current_turn_id: data["currentTurnId"].as_str().unwrap_or("").to_string(),
+                                                    })
+                                                }
+                                                "aether-strike:game-started" => {
+                                                    let enemies_json = data["enemies"].as_array();
+                                                    let mut enemies_list = Vec::new();
+                                                    if let Some(arr) = enemies_json {
+                                                        for val in arr {
+                                                            if let Ok(enemy) = serde_json::from_value::<EnemyData>(val.clone()) {
+                                                                enemies_list.push(enemy);
+                                                            }
+                                                        }
+                                                    }
+                                                    Some(GameEvent::GameStarted { enemies: enemies_list })
+                                                }
+                                                _ => None
+                                            };
+
+                                            if let Some(event) = game_event {
+                                                let _ = tx_events.send(event);
+                                            }
+                                        }
+                                    }
+                                }
+                                Message::Ping(_) | Message::Pong(_) => {}
+                                Message::Close(_) => {
+                                    println!("🔌 Server closed connection. Reconnecting...");
+                                    break; // Break inner loop to reconnect
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(tungstenite::Error::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                            // OK
+                        }
+                        Err(e) => {
+                            eprintln!("WebSocket error (Connection broken): {}", e);
+                            let _ = tx_events.send(GameEvent::Error(format!("Connection Lost: {}", e)));
+                            break; // Break inner loop to reconnect
+                        }
                     }
-                    Message::Close(_) => {
-                        println!("🔌 Server closed connection");
-                        return Ok(());
-                    }
-                    _ => {}
-                }
-            }
-            Err(tungstenite::Error::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                // Pas de données disponibles, c'est normal en mode non-bloquant
-            }
+
+                    // 16ms sleep (~60 UPS)
+                    std::thread::sleep(std::time::Duration::from_millis(16));
+                } // End Inner Loop
+            },
             Err(e) => {
-                eprintln!("WebSocket error: {}", e);
-                let _ = tx_events.send(GameEvent::Error(format!("{}", e)));
-                // Si c'est WouldBlock qui n'a pas été catché plus haut (rare)
-                // return Err(format!("WS error: {}", e));
-                // On essaie de continuer si c'est une erreur temporaire, sinon break
-                 return Err(format!("WS error: {}", e));
+                 eprintln!("Connection failed: {}", e);
+                 let _ = tx_events.send(GameEvent::Error(format!("Connect failed: {}", e)));
+                 // Wait before retry
+                 std::thread::sleep(std::time::Duration::from_secs(5));
             }
         }
-
-        // Petit sleep pour ne pas manger 100% CPU
-        std::thread::sleep(std::time::Duration::from_millis(16)); // ~60 UPS
-    }
+    } // End Outer Loop
 }
