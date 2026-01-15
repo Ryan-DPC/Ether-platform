@@ -190,6 +190,8 @@ fn ws_thread_loop(
     rx_commands: Receiver<WsCommand>,
     tx_events: Sender<GameEvent>,
     token: String,
+    username: String,
+    user_id: String,
 ) -> Result<(), String> {
     // Connexion WebSocket
     // Connexion WebSocket
@@ -258,7 +260,9 @@ fn ws_thread_loop(
                     "data": {
                         "gameId": game_id,
                         "playerClass": player_class,
-                        "maxPlayers": 4
+                        "maxPlayers": 4,
+                        "username": username,
+                        "userId": user_id
                     }
                 });
                 
