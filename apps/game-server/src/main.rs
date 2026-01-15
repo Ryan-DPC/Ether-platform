@@ -245,6 +245,48 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             tracing::info!("Game {} started", current_room_id);
                                         }
                                     }
+                                    "aether-strike:use-attack" => {
+                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                            let broadcast = serde_json::json!({
+                                                "type": "aether-strike:combat-action",
+                                                "data": {
+                                                    "actorId": user_id,
+                                                    "targetId": data["targetId"],
+                                                    "actionName": data["attackName"],
+                                                    "damage": data["damage"].as_f64().unwrap_or(0.0),
+                                                    "manaCost": data["manaCost"].as_u64().unwrap_or(0),
+                                                    "isArea": data["isArea"].as_bool().unwrap_or(false)
+                                                }
+                                            }).to_string();
+                                            let _ = room.tx.send(broadcast);
+                                        }
+                                    }
+                                    "aether-strike:admin-attack" => {
+                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                            let broadcast = serde_json::json!({
+                                                "type": "aether-strike:combat-action",
+                                                "data": {
+                                                    "actorId": data["actorId"],
+                                                    "targetId": data["targetId"],
+                                                    "actionName": data["attackName"],
+                                                    "damage": data["damage"].as_f64().unwrap_or(0.0),
+                                                    "manaCost": 0,
+                                                    "isArea": false
+                                                }
+                                            }).to_string();
+                                            let _ = room.tx.send(broadcast);
+                                        }
+                                    }
+                                    "aether-strike:end-turn" => {
+                                        if let Some(room) = state.rooms.read().unwrap().get(&current_room_id) {
+                                             let next_id = data["nextTurnId"].as_str().unwrap_or("");
+                                             let broadcast = serde_json::json!({
+                                                 "type": "aether-strike:turn-changed",
+                                                 "data": { "currentTurnId": next_id }
+                                             }).to_string();
+                                             let _ = room.tx.send(broadcast);
+                                        }
+                                    }
                                     _ => {
                                         // Relay Logic
                                         if !current_room_id.is_empty() {

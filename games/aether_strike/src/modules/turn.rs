@@ -90,6 +90,16 @@ impl TurnSystem {
         &self.current_turn_id
     }
 
+    pub fn peek_next_id(&self) -> String {
+        if self.turn_queue.is_empty() { return String::new(); }
+        let next_idx = if self.current_turn_index + 1 >= self.turn_queue.len() {
+            0
+        } else {
+            self.current_turn_index + 1
+        };
+        self.turn_queue[next_idx].0.clone()
+    }
+
     /// Dynamically updates the speed of an entity.
     /// If the entity is yet to act in this round, the queue is re-sorted to reflect the new speed.
     pub fn update_speed(&mut self, entity_id: &str, new_speed: u32) {

@@ -840,13 +840,27 @@ async fn main() {
                                 is_solo_mode = false;
                             }
 
-                        } else {
                             // Multiplayer mode: send to server
                             if let Some(client) = &network_manager.client {
                                 match action {
-                                    HUDAction::UseAttack(name, target_id) => { client.use_attack(name, Some(target_id)); }
+                                    HUDAction::UseAttack(name, target_id) => { 
+                                        let mut damage = 10.0;
+                                        let mut mana = 0;
+                                        let mut is_area = false;
+                                        if let Some(gs) = &_game_state {
+                                            if let Some(skill) = gs.character_class.skills.iter().find(|s| s.name == name) {
+                                                damage = skill.base_damage;
+                                                mana = skill.mana_cost;
+                                                is_area = skill.skill_type.to_lowercase().contains("aoe");
+                                            }
+                                        }
+                                        client.use_attack(name, Some(target_id), damage, mana, is_area); 
+                                    }
                                     HUDAction::Flee => { client.flee(); }
-                                    HUDAction::EndTurn => { client.end_turn(); }
+                                    HUDAction::EndTurn => { 
+                                        let next = turn_system.peek_next_id();
+                                        client.end_turn(next); 
+                                    }
                                     _ => { println!("Action not supported in Multiplayer"); }
                                 }
                             }
@@ -859,6 +873,48 @@ async fn main() {
                              &current_turn_id, &mut _enemies, &mut _enemy, gs, &mut combat_logs,
                              &mut battle_ui_state, &mut enemy_attack_timer, &mut should_advance_turn
                          );
+                     }
+                     
+                     // === MULTIPLAYER HOST AI ===
+                     if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
+                         if let Some(client) = &network_manager.client {
+                             let current_id = &current_turn_id;
+                             
+                             // Minion Turn
+                             if let Some(enemy) = _enemies.iter().find(|e| &e.id == current_id) {
+                                  enemy_attack_timer += get_frame_time();
+                                  if enemy_attack_timer > 2.0 {
+                                      enemy_attack_timer = 0.0;
+                                      // Pick Target (Simple: Host or Random)
+                                      let target = if !other_players.is_empty() {
+                                            // Simple round robin or first
+                                            other_players.keys().next().unwrap().clone()
+                                      } else {
+                                            player_profile.vext_username.clone()
+                                      };
+                                      
+                                      println!("Host AI: Minion {} attacks {}", enemy.id, target);
+                                      client.admin_attack(enemy.id.clone(), "Attack".to_string(), Some(target), enemy.stats.damage);
+                                      
+                                      let next = turn_system.peek_next_id();
+                                      client.end_turn(next);
+                                  }
+                             } 
+                             // Boss Turn
+                             else if let Some(boss) = &_enemy {
+                                 if &boss.id == current_id {
+                                      enemy_attack_timer += get_frame_time();
+                                      if enemy_attack_timer > 2.0 {
+                                          enemy_attack_timer = 0.0;
+                                          let target = player_profile.vext_username.clone();
+                                          println!("Host AI: Boss {} attacks {}", boss.id, target);
+                                          client.admin_attack(boss.id.clone(), "Smash".to_string(), Some(target), boss.stats.damage);
+                                          let next = turn_system.peek_next_id();
+                                          client.end_turn(next);
+                                      }
+                                 }
+                             }
+                         }
                      }
 
                      if should_advance_turn {

@@ -85,8 +85,9 @@ pub enum WsCommand {
     Connect,
     Disconnect,
     SendInput { position: (f32, f32), velocity: (f32, f32), action: String },
-    UseAttack { attack_name: String, target_id: Option<String> },
-    EndTurn,
+    UseAttack { attack_name: String, target_id: Option<String>, damage: f32, mana_cost: u32, is_area: bool },
+    AdminAttack { actor_id: String, attack_name: String, target_id: Option<String>, damage: f32 },
+    EndTurn { next_turn_id: String },
     Flee,
     ChangeClass { new_class: String },
     StartGame { enemies: Vec<EnemyData> },
@@ -140,13 +141,18 @@ impl GameClient {
     }
 
     /// Envoie l'utilisation d'une attaque
-    pub fn use_attack(&self, attack_name: String, target_id: Option<String>) {
-        let _ = self.tx_to_ws.send(WsCommand::UseAttack { attack_name, target_id });
+    pub fn use_attack(&self, attack_name: String, target_id: Option<String>, damage: f32, mana_cost: u32, is_area: bool) {
+        let _ = self.tx_to_ws.send(WsCommand::UseAttack { attack_name, target_id, damage, mana_cost, is_area });
+    }
+
+    /// Action d'admin (Host) pour faire attaquer un ennemi
+    pub fn admin_attack(&self, actor_id: String, attack_name: String, target_id: Option<String>, damage: f32) {
+        let _ = self.tx_to_ws.send(WsCommand::AdminAttack { actor_id, attack_name, target_id, damage });
     }
 
     /// Passe le tour
-    pub fn end_turn(&self) {
-        let _ = self.tx_to_ws.send(WsCommand::EndTurn);
+    pub fn end_turn(&self, next_turn_id: String) {
+        let _ = self.tx_to_ws.send(WsCommand::EndTurn { next_turn_id });
     }
 
     /// Tente de fuir
@@ -317,20 +323,35 @@ fn ws_thread_loop(
                                  });
                                  let _ = socket.send(Message::Text(msg.to_string()));
                             }
-                            WsCommand::UseAttack { attack_name, target_id } => {
+                            WsCommand::UseAttack { attack_name, target_id, damage, mana_cost, is_area } => {
                                 let msg = serde_json::json!({
                                     "type": "aether-strike:use-attack",
                                     "data": {
                                         "attackName": attack_name,
-                                        "targetId": target_id
+                                        "targetId": target_id,
+                                        "damage": damage,
+                                        "manaCost": mana_cost,
+                                        "isArea": is_area
                                     }
                                 });
                                 let _ = socket.send(Message::Text(msg.to_string()));
                             }
-                            WsCommand::EndTurn => {
+                            WsCommand::AdminAttack { actor_id, attack_name, target_id, damage } => {
+                                let msg = serde_json::json!({
+                                    "type": "aether-strike:admin-attack",
+                                    "data": {
+                                        "actorId": actor_id,
+                                        "attackName": attack_name,
+                                        "targetId": target_id,
+                                        "damage": damage
+                                    }
+                                });
+                                let _ = socket.send(Message::Text(msg.to_string()));
+                            }
+                            WsCommand::EndTurn { next_turn_id } => {
                                 let msg = serde_json::json!({
                                     "type": "aether-strike:end-turn",
-                                    "data": {}
+                                    "data": { "nextTurnId": next_turn_id }
                                 });
                                 let _ = socket.send(Message::Text(msg.to_string()));
                             }
