@@ -358,9 +358,11 @@ fn ws_thread_loop(
                                         })
                                     }
                                     "aether-strike:game-state" => {
+                                        println!("NET-RX: Received GameState RAW: {:?}", data); // DEBUG
                                         let mut players = Vec::new();
                                         if let Some(players_val) = data["players"].as_array() {
                                             for p in players_val {
+                                                println!("  - Parse Player: {:?}", p); // DEBUG
                                                 players.push(RemotePlayer {
                                                     userId: p["userId"].as_str().unwrap_or("").to_string(),
                                                     username: p["username"].as_str().unwrap_or("Unknown").to_string(),
@@ -371,6 +373,8 @@ fn ws_thread_loop(
                                                     ),
                                                 });
                                             }
+                                        } else {
+                                             println!("NET-RX: ERROR 'players' not found or not array in GameState");
                                         }
                                         Some(GameEvent::GameState {
                                             players,
