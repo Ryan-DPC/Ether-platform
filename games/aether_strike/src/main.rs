@@ -576,9 +576,13 @@ async fn main() {
                 }
 
                 if _lobby_host_id == player_profile.vext_username || is_host {
+                    
+                    // Draw the button!
+                    let is_hovered = start_btn.is_clicked(mouse_pos);
+                    start_btn.draw(is_hovered);
 
                     // Check if START is clicked (with cooldown)
-                    if start_btn.is_clicked(mouse_pos) && get_time() - lobby_entry_time > 1.0 {
+                    if is_hovered && get_time() - lobby_entry_time > 1.0 {
                         println!("Host starting game...");
                         if let Some(client) = &network_manager.client {
                             // Generate Wave 1 Enemies
