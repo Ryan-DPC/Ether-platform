@@ -11,6 +11,7 @@ import UserAutocomplete from '../components/UserAutocomplete.vue';
 import { getApiUrl } from '../utils/url';
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
 import tauriAPI from '../tauri-adapter';
+import { useRouter } from 'vue-router';
 
 const gameStore = useGameStore();
 const categoryStore = useCategoryStore();
@@ -55,43 +56,7 @@ onMounted(async () => {
   await groupStore.fetchMyGroups();
   groupStore.setupWebSocketListeners();
 
-  // Sync local installation status
-  if ((window as any).__TAURI__) {
-    const libraryPathsStr = localStorage.getItem('vextLibraryPaths');
-    let paths: string[] = libraryPathsStr ? JSON.parse(libraryPathsStr) : [];
-    const legacyPath = localStorage.getItem('etherInstallPath');
-    if (legacyPath && !paths.includes(legacyPath)) {
-      paths.push(legacyPath);
-    }
-
-    // Remove duplicates and nulls
-    paths = [...new Set(paths)].filter((p) => !!p);
-
-    if (paths.length > 0 && gameStore.myGames.length > 0) {
-      // Check all games concurrently
-      await Promise.all(
-        gameStore.myGames.map(async (game: any) => {
-          const gameId = game.folder_name || game.slug;
-          if (!gameId) return;
-
-          for (const path of paths) {
-            try {
-              const exists = await tauriAPI.checkGameInstalled(path, gameId);
-              if (exists) {
-                game.installed = true;
-                game.status = 'installed';
-                break;
-              }
-            } catch (e) {
-              // ignore error checking specific path
-            }
-          }
-        })
-      );
-    }
-  }
-
-  // Setup Tauri listeners
+  // Install check is now handled by gameStore
   // Safe to call, internal check handles it
   tauriAPI.onInstallProgress((data: any) => {
     if (installingGameId.value) {
@@ -287,6 +252,12 @@ const handleUninstall = async (game: any) => {
   }
 };
 
+const router = useRouter();
+const goToGameDetails = (gameId: string) => {
+  if (!gameId) return;
+  router.push(`/game/${gameId}`);
+};
+
 // Social Actions
 const toggleAddFriend = () => {
   showAddFriendInput.value = !showAddFriendInput.value;
@@ -447,7 +418,7 @@ const handleAddFriendFromGroup = async (username: string) => {
         <section class="section">
           <h3><i class="fas fa-th"></i> All Games Filtered</h3>
           <div class="games-grid">
-            <div v-for="game in filteredGames" :key="game._id" class="grid-card">
+            <div v-for="game in filteredGames" :key="game._id" class="grid-card" @click="goToGameDetails(game._id || game.folder_name)">
               <div class="card-poster">
                 <img :src="game.image_url || defaultGameImg" />
                 <div class="poster-overlay">
@@ -458,7 +429,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                     <i class="fas fa-spinner fa-spin"></i> {{ installProgress.progress }}%
                   </div>
                   <div v-else-if="game.installed" class="play-actions">
-                    <button @click="launchGame(game.folder_name)" class="btn-grid-play">
+                    <button @click.stop="launchGame(game.folder_name)" class="btn-grid-play">
                       <i class="fas fa-play"></i>
                     </button>
                     <button
@@ -469,7 +440,7 @@ const handleAddFriendFromGroup = async (username: string) => {
                       <i class="fas fa-trash"></i>
                     </button>
                   </div>
-                  <button v-else @click="installGame(game)" class="btn-grid-install">
+                  <button v-else @click.stop="installGame(game)" class="btn-grid-install">
                     <i class="fas fa-download"></i>
                   </button>
                 </div>

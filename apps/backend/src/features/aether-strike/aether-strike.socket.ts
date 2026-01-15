@@ -150,7 +150,10 @@ export const handleAetherStrikeMessage = async (ws: any, event: string, payload:
         case 'aether-strike:change-class':
             const classGameId = ws.data.aetherGameId;
             const classRoom = gameRooms.get(classGameId);
-            if (!classRoom) return;
+            if (!classRoom) {
+                console.log(`[Aether Strike] Change class failed: Room ${classGameId} not found`);
+                return;
+            }
 
             const player = classRoom.players.get(userId);
             if (player) {
@@ -167,6 +170,8 @@ export const handleAetherStrikeMessage = async (ws: any, event: string, payload:
                 }));
 
                 console.log(`[Aether Strike] Player ${username} changed class to ${player.class}`);
+            } else {
+                console.log(`[Aether Strike] Change class failed: Player ${userId} not found in room ${classGameId}`);
             }
             break;
 

@@ -40,10 +40,53 @@ export const useGameStore = defineStore('game', {
       try {
         const response = await axios.get('/library/my-games');
         this.myGames = response.data || [];
+        // Immediately check installation status after fetching
+        this.checkInstallationStatus();
       } catch (error) {
         console.error('Failed to fetch my games:', error);
       } finally {
         this.isLoading = false;
+      }
+    },
+    async checkInstallationStatus() {
+      // If not in Tauri, skip
+      if (!(window as any).__TAURI__) return;
+
+      const tauriAPI = (await import('../tauri-adapter')).default;
+
+      try {
+        const libraryPathsStr = localStorage.getItem('vextLibraryPaths');
+        let paths: string[] = libraryPathsStr ? JSON.parse(libraryPathsStr) : [];
+        const legacyPath = localStorage.getItem('etherInstallPath');
+        if (legacyPath && !paths.includes(legacyPath)) {
+          paths.push(legacyPath);
+        }
+        paths = [...new Set(paths)].filter((p) => !!p);
+
+        if (paths.length > 0 && this.myGames.length > 0) {
+          // Check concurrently
+          await Promise.all(
+            this.myGames.map(async (game: any) => {
+              const gameId = game.folder_name || game.slug;
+              if (!gameId) return;
+
+              for (const path of paths) {
+                try {
+                  const exists = await tauriAPI.checkGameInstalled(path, gameId);
+                  if (exists) {
+                    game.installed = true;
+                    game.status = 'installed';
+                    break;
+                  }
+                } catch (e) {
+                  // ignore
+                }
+              }
+            })
+          );
+        }
+      } catch (e) {
+        console.error("Error checking installation status:", e);
       }
     },
   },

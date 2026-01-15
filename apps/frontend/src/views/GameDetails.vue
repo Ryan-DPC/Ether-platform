@@ -21,6 +21,9 @@ const error = ref<string | null>(null);
 const userOwnsGame = ref(false);
 const isPurchasing = ref(false);
 
+import { useGameStore } from '@/stores/gameStore';
+const gameStore = useGameStore();
+
 // Installation state
 const isInstalled = ref(false);
 const hasUpdate = ref(false);
@@ -353,6 +356,19 @@ onMounted(async () => {
     }
 
     if (game.value) {
+      // Immediate check from global store to prevent flicker
+      const storeGame = gameStore.myGames.find(
+        (g: any) =>
+          g.folder_name === game.value.slug ||
+          g.slug === game.value.slug ||
+          g._id === game.value._id
+      );
+
+      if (storeGame && storeGame.installed) {
+        isInstalled.value = true;
+        console.log('Using cached install status for', game.value.gameName);
+      }
+
       // Check if user owns this game
       try {
         const libraryResponse = await axios.get('/library/my-games');
