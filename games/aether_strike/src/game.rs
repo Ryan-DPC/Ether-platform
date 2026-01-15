@@ -64,6 +64,7 @@ impl Resources {
 pub struct GameState {
     pub character_class: CharacterClass,
     pub resources: Resources,
+    pub inventory: Inventory,
     pub active_passives: Vec<Passive>,
     pub level: u32,
     pub score: u32,
@@ -86,6 +87,7 @@ impl GameState {
         Self {
             character_class,
             resources: Resources::new(max_mana, max_hp, speed),
+            inventory: Inventory::new(),
             active_passives: Vec::new(),
             level: 1,
             score: 0,

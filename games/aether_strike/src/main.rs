@@ -1081,7 +1081,8 @@ async fn main() {
                     draw_text(&text, SCREEN_WIDTH / 2.0 - measure_text(&text, None, 30, 1.0).width / 2.0, 350.0, 30.0, YELLOW);
                 }
                 
-                summary_back_btn.draw(mouse_pos);
+                let is_hovered = summary_back_btn.is_clicked(mouse_pos);
+                summary_back_btn.draw(is_hovered);
                 if is_mouse_button_pressed(MouseButton::Left) && summary_back_btn.is_clicked(mouse_pos) {
                     current_screen = GameScreen::MainMenu;
                     // Reset game
