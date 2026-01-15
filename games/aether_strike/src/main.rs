@@ -882,7 +882,7 @@ async fn main() {
                              
                              // Minion Turn
                              if let Some(enemy) = _enemies.iter().find(|e| &e.id == current_id) {
-                                  enemy_attack_timer += get_frame_time();
+                                  enemy_attack_timer += get_frame_time() as f64;
                                   if enemy_attack_timer > 2.0 {
                                       enemy_attack_timer = 0.0;
                                       // Pick Target (Simple: Host or Random)
@@ -894,7 +894,7 @@ async fn main() {
                                       };
                                       
                                       println!("Host AI: Minion {} attacks {}", enemy.id, target);
-                                      client.admin_attack(enemy.id.clone(), "Attack".to_string(), Some(target), enemy.stats.damage);
+                                      client.admin_attack(enemy.id.clone(), "Attack".to_string(), Some(target), enemy.attack_damage);
                                       
                                       let next = turn_system.peek_next_id();
                                       client.end_turn(next);
@@ -903,12 +903,12 @@ async fn main() {
                              // Boss Turn
                              else if let Some(boss) = &_enemy {
                                  if &boss.id == current_id {
-                                      enemy_attack_timer += get_frame_time();
+                                      enemy_attack_timer += get_frame_time() as f64;
                                       if enemy_attack_timer > 2.0 {
                                           enemy_attack_timer = 0.0;
                                           let target = player_profile.vext_username.clone();
                                           println!("Host AI: Boss {} attacks {}", boss.id, target);
-                                          client.admin_attack(boss.id.clone(), "Smash".to_string(), Some(target), boss.stats.damage);
+                                          client.admin_attack(boss.id.clone(), "Smash".to_string(), Some(target), boss.attack_damage);
                                           let next = turn_system.peek_next_id();
                                           client.end_turn(next);
                                       }
