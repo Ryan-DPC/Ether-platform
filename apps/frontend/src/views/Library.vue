@@ -11,7 +11,6 @@ import UserAutocomplete from '../components/UserAutocomplete.vue';
 import { getApiUrl } from '../utils/url';
 const defaultGameImg = `${getApiUrl()}/public/default-game.svg`;
 import tauriAPI from '../tauri-adapter';
-import aetherLogo from '@/assets/aether_strike_logo.png';
 
 const gameStore = useGameStore();
 const categoryStore = useCategoryStore();
@@ -151,14 +150,6 @@ const filteredGames = computed(() => {
     const query = searchQuery.value.toLowerCase();
     games = games.filter((g: any) => g.game_name.toLowerCase().includes(query));
   }
-
-  // Override image for Aether Strike
-  games = games.map((g: any) => {
-    if (g.slug === 'aether_strike' || g.folder_name === 'aether_strike') {
-      return { ...g, image_url: aetherLogo };
-    }
-    return g;
-  });
 
   if (filterStatus.value === 'installed') {
     games = games.filter((g: any) => g.installed);

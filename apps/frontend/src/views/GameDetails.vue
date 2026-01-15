@@ -10,7 +10,6 @@ import { useAlertStore } from '@/stores/alertStore';
 import { useGameLauncher } from '../composables/useGameLauncher';
 import InstallPathSelector from '../components/InstallPathSelector.vue';
 import tauriAPI from '../tauri-adapter';
-import aetherLogo from '@/assets/aether_strike_logo.png';
 
 const userStore = useUserStore();
 const alertStore = useAlertStore();
