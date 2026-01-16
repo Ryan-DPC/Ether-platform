@@ -310,7 +310,7 @@ impl LobbySystem {
                             if let Some(wave) = crate::waves::WaveManager::new().waves.get(0) { // Wave 1
                                 let mut enemies_list = Vec::new();
                                 for (i, def) in wave.enemies.iter().enumerate() {
-                                    let id = format!("{}-{}", def.0.name, rand::rand() as u32);
+                                    let id = format!("{}-{}", def.0.name, i); // DETERMINISTIC ID
                                     let hp = def.0.hp; // Simplified
                                     enemies_list.push(crate::network_protocol::EnemyData {
                                         id,
