@@ -321,9 +321,8 @@ impl LobbySystem {
                                         position: (600.0 + (i as f32 * 50.0), 300.0 + (i as f32 * 50.0)),
                                     });
                                 }
-                                println!("Host: Sending start_game with {} enemies (DEBUG: SENT EMPTY)", enemies_list.len());
-                                // client.start_game(enemies_list);
-                                client.start_game(Vec::new()); // DEBUG TEST
+                                println!("Host: Sending start_game with {} enemies", enemies_list.len());
+                                client.start_game(enemies_list);
                             }
                         }
                     }
