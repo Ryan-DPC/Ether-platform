@@ -449,32 +449,38 @@ fn ws_thread_loop(
                                                     })
                                                 }
                                                 "aether-strike:game-state" => {
-                                                    let mut players = Vec::new();
+                                                    let mut player_map = HashMap::new();
+                                                    // Le serveur Bun envoie { players: [...], hostId: "..." }
                                                     if let Some(players_val) = data["players"].as_array() {
                                                         for p in players_val {
-                                                            players.push(RemotePlayer {
-                                                                userId: p["userId"].as_str().unwrap_or("").to_string(),
-                                                                username: p["username"].as_str().unwrap_or("Unknown").to_string(),
-                                                                class: p["class"].as_str().unwrap_or("warrior").to_string(),
-                                                                hp: p["hp"].as_f64().unwrap_or(100.0) as f32,
-                                                                max_hp: p["maxHp"].as_f64().unwrap_or(100.0) as f32,
-                                                                speed: p["speed"].as_f64().unwrap_or(100.0) as f32,
-                                                                position: (
-                                                                    p["position"]["x"].as_f64().unwrap_or(0.0) as f32,
-                                                                    p["position"]["y"].as_f64().unwrap_or(0.0) as f32,
-                                                                ),
+                                                            let uid = p["userId"].as_str().unwrap_or("").to_string();
+                                                            let uname = p["username"].as_str().unwrap_or("Unknown").to_string();
+                                                            let uclass = p["class"].as_str().unwrap_or("warrior").to_string();
+                                                            
+                                                            player_map.insert(uid, RemotePlayer {
+                                                                username: uname,
+                                                                class: uclass,
                                                             });
                                                         }
                                                     }
+                                                    
+                                                    // On accepte hostId ou host_id
+                                                    let hid = data["hostId"].as_str()
+                                                        .or(data["host_id"].as_str())
+                                                        .unwrap_or("")
+                                                        .to_string();
+
                                                     Some(GameEvent::GameState {
-                                                        players,
-                                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
+                                                        players: player_map,
+                                                        host_id: hid,
                                                     })
                                                 }
                                                 "aether-strike:new-host" => {
-                                                    Some(GameEvent::NewHost {
-                                                        host_id: data["hostId"].as_str().unwrap_or("").to_string(),
-                                                    })
+                                                    let hid = data["hostId"].as_str()
+                                                        .or(data["host_id"].as_str())
+                                                        .unwrap_or("")
+                                                        .to_string();
+                                                    Some(GameEvent::NewHost { host_id: hid })
                                                 }
                                                 "aether-strike:player-left" => {
                                                     Some(GameEvent::PlayerLeft {

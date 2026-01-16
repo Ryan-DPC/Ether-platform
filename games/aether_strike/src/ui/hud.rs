@@ -233,9 +233,32 @@ impl HUD {
         draw_rectangle(0.0, menu_y, screen_width, menu_h, Color::from_rgba(12, 12, 18, 250));
         draw_line(0.0, menu_y, screen_width, menu_y, 3.0, GOLD);
 
-        let status_text = if is_my_turn { "YOUR TURN" } else { "ENEMY TURN" };
+        let status_text = if is_my_turn {
+            "YOUR TURN".to_string()
+        } else {
+            // Try to find the name of the current turn owner
+            let mut name = "ENEMY TURN".to_string(); // Default to enemy
+            
+            // Check other players
+            if let Some(p) = other_players.get(current_turn_id) {
+                name = format!("{}'S TURN", p.username.to_uppercase());
+            } 
+            // Check enemies (standard list)
+            else if let Some(e) = enemies.iter().find(|e| &e.id == current_turn_id) {
+                name = format!("{} TURN", e.name.to_uppercase());
+            }
+            // Check boss
+            else if let Some(boss) = start_enemy {
+                if &boss.id == current_turn_id {
+                    name = format!("BOSS {} TURNS", boss.name.to_uppercase());
+                }
+            }
+            
+            name
+        };
+        
         let status_color = if is_my_turn { GREEN } else { RED };
-        draw_text(status_text, padding, menu_y + 22.0, 16.0, status_color);
+        draw_text(&status_text, padding, menu_y + 22.0, 16.0, status_color);
 
         // Combat Log
         let log_x = padding;

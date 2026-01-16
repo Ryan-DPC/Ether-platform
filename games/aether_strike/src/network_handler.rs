@@ -181,6 +181,15 @@ impl NetworkHandler {
                         actor_id.clone()
                     };
 
+                    println!("NET-RX: CombatAction from {} targeting {:?}. Damage: {}", actor_name, target_id, damage);
+                    if let Some(ref tid) = target_id {
+                         let found_enemy = enemies.iter().any(|e| &e.id == tid);
+                         println!("DEBUG: Target ID '{}' found in enemies list? {}", tid, found_enemy);
+                         if !found_enemy {
+                             println!("DEBUG: Available Enemy IDs: {:?}", enemies.iter().map(|e| &e.id).collect::<Vec<_>>());
+                         }
+                    }
+
                     combat_logs.push(format!("{} used {} ({} dmg)", actor_name, action_name, damage));
                     
                     if let Some(tid) = target_id {
