@@ -1,24 +1,9 @@
 use serde::{Deserialize, Serialize};
 use reqwest::blocking::Client;
-use std::fs;
 use std::net::UdpSocket;
 
-/// Helper to read the base URL from server_config.txt
+/// Helper to get the base URL (Hardcoded for stability)
 pub fn get_base_url() -> String {
-    if let Ok(url) = fs::read_to_string("server_config.txt") {
-        let mut trimmed = url.trim().to_string();
-        // Remove common suffixes to get the clean base
-        if trimmed.ends_with("/api") {
-            trimmed = trimmed.replace("/api", "");
-        }
-        if trimmed.ends_with('/') {
-            trimmed.pop();
-        }
-        if !trimmed.is_empty() {
-            return trimmed;
-        }
-    }
-    // Hardcoded fallback if file is missing or empty
     "https://vext-ws-server-3jrc.onrender.com".to_string()
 }
 
