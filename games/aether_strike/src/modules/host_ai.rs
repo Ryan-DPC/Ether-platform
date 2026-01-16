@@ -52,13 +52,15 @@ impl HostAI {
         }
 
         if let Some(client) = &network_manager.client {
-            // DEBUG: Print available enemy IDs
+            // DEBUG: ALWAYS print enemy status
+            println!("HostAI [ALWAYS]: turn='{}', enemies_count={}, boss={}", 
+                current_turn_id, 
+                enemies.len(),
+                enemy.is_some()
+            );
+            
             if !enemies.is_empty() {
-                println!("HostAI: Looking for turn_id='{}' in {} enemies: {:?}", 
-                    current_turn_id, 
-                    enemies.len(),
-                    enemies.iter().map(|e| e.id.clone()).collect::<Vec<_>>()
-                );
+                println!("HostAI: Enemy IDs: {:?}", enemies.iter().map(|e| e.id.clone()).collect::<Vec<_>>());
             }
             
             // Check Minion
