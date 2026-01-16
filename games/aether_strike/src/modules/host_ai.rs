@@ -26,20 +26,25 @@ impl HostAI {
 
     pub fn update(
         &mut self,
-        current_turn_id: &str,
+        current_turn_id: &mut String,
         player_profile: &PlayerProfile,
         game_state: &GameState,
         network_manager: &NetworkManager,
         enemies: &Vec<Enemy>,
         enemy: &Option<Enemy>,
         other_players: &HashMap<String, RemotePlayer>,
-        turn_system: &TurnSystem,
+        turn_system: &mut TurnSystem,
         is_solo_mode: bool,
         lobby_host_id: &str,
     ) {
         // Must be Multiplayer, Host, and not Solo
         if is_solo_mode || lobby_host_id != player_profile.vext_username {
             return;
+        }
+
+        // DEBUG: Trace Turn
+        if network_manager.client.is_some() {
+             // println!("Host AI Update: Turn={}, Acted={}", current_turn_id, self.acted);
         }
 
         if let Some(client) = &network_manager.client {
@@ -67,6 +72,10 @@ impl HostAI {
                         
                         let next = turn_system.peek_next_id();
                         println!("Host AI: Minion Ending turn for {}. Next: '{}'", minion.id, next);
+                        // --- OPTIMISTIC AI TURN ADVANCE ---
+                        *current_turn_id = next.clone();
+                        turn_system.sync_to_id(&next);
+
                         client.end_turn(next);
                     }
                 }
@@ -76,7 +85,7 @@ impl HostAI {
                 if &boss.id == current_turn_id {
                     if !self.acted {
                         self.attack_timer += get_frame_time() as f64;
-                        if self.attack_timer > 1.0 {
+                        if self.attack_timer > 1.0 { // Boss acts slower
                             self.attack_timer = 0.0;
                             
                             // --- SMART TARGET SELECTION ---
@@ -96,6 +105,11 @@ impl HostAI {
                             
                             let next = turn_system.peek_next_id();
                             println!("Host AI: Boss Ending turn for {}. Next: '{}'", boss.id, next);
+                            
+                            // Optimistic Update
+                            *current_turn_id = next.clone();
+                            turn_system.sync_to_id(&next);
+
                             client.end_turn(next);
                         }
                     }

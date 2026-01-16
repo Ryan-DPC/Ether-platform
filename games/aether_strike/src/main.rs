@@ -34,6 +34,7 @@ use modules::button::{MenuButton, ClassButton, SessionButton};
 use modules::turn::TurnSystem;
 use modules::position::*; // Import constants directly
 use modules::host_ai::HostAI;
+use modules::lobby_ui::{LobbySystem, LobbyAction};
 use class_system::CharacterClass;
 use menu_ui::{draw_create_server, draw_password_dialog};
 use assets::GameAssets;
@@ -96,21 +97,11 @@ async fn main() {
     
     let mut selected_class: Option<CharacterClass> = None;
     
-    // Variables pour le online
-    let mut server_name_input = String::new();
-    let mut server_password_input = String::new();
-    let mut is_private_server = false;
-    let mut max_players = 4u32;
-    // New vars
-    // Duplicate declarations removed (current_turn_id, last_network_log defined later)
+    let mut current_turn_id = String::new();
+    let mut last_network_log = String::new();
     let mut last_turn_id_debug = String::new(); // For debug/management of turns
     let mut host_ai = HostAI::new();
-    let mut server_name_active = false;
-    let mut server_password_active = false;
-    
-    // Sessions mock (normalement viendraient du serveur)
-    // Sessions mock (normalement viendraient du serveur - vide maintenant)
-    let mut sessions: Vec<SessionButton> = Vec::new();
+    let mut lobby_system = LobbySystem::new(SCREEN_WIDTH, SCREEN_HEIGHT);
     
     // Network manager (Refactored)
     let mut network_manager = server::NetworkManager::new();
@@ -120,13 +111,10 @@ async fn main() {
     let mut other_players: HashMap<String, network_client::RemotePlayer> = HashMap::new();
     let mut is_host = false;
     let mut _lobby_host_id = String::new();
-    // let vext_token = _vext_token.clone(); // Duplicate removed
     
-    // Dialogue de mot de passe
-    let mut show_password_dialog = false;
-    let mut join_password_input = String::new();
-    let join_password_active = true;
-    let mut selected_session: Option<usize> = None;
+    
+    // Variables pour le jeu
+    let mut current_screen = GameScreen::MainMenu;
     
     // Variables pour le jeu
     let mut current_screen = GameScreen::MainMenu;
@@ -186,10 +174,7 @@ async fn main() {
 
     // Boutons
     let confirm_button = MenuButton::new("START GAME", SCREEN_WIDTH / 2.0 - 150.0, SCREEN_HEIGHT - 80.0, 300.0, 60.0);
-    let create_server_button = MenuButton::new("CREATE SERVER", SCREEN_WIDTH - 350.0, SCREEN_HEIGHT - 70.0, 200.0, 50.0);
-    let confirm_create_button = MenuButton::new("CREATE", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0);
-    let refresh_button = MenuButton::new("REFRESH", SCREEN_WIDTH - 170.0, 40.0, 150.0, 40.0);
-    let start_btn = MenuButton::new("START", SCREEN_WIDTH / 2.0 - 100.0, SCREEN_HEIGHT - 100.0, 200.0, 50.0); // For lobby
+    // Moved to LobbySystem: create_server, confirm_create, refresh, start_btn
     let summary_back_btn = MenuButton::new("BACK TO MENU", SCREEN_WIDTH / 2.0 - 150.0, SCREEN_HEIGHT - 150.0, 300.0, 60.0);
 
 
@@ -346,354 +331,79 @@ async fn main() {
                 }
             }
 
-            GameScreen::SessionList => {
-                renderer.draw_session_list(&sessions, &player_profile, mouse_pos);
-
-                if is_mouse_button_pressed(MouseButton::Left) {
-                    // Vérifier les clics sur les boutons JOIN
-                    for (i, session) in sessions.iter().enumerate() {
-                        if session.join_button_clicked(mouse_pos) {
-                            selected_session = Some(i);
-                            
-                            // Connecter au relay WebSocket
-                            let lobby_id = session.session.name.clone(); // Utilise le nom comme ID pour l'instant
-                            let ws_url = network_api::get_ws_url();
-                            
-                            match GameClient::connect(
-                                &ws_url,
-                                &vext_token,
-                                lobby_id.clone(),
-                                selected_class.as_ref().map(|c| c.name.to_lowercase()).unwrap_or_else(|| "warrior".to_string()),
-                                false, // is_host = false
-                                player_profile.vext_username.clone(),
-                                player_profile.vext_username.clone(), // UserID
-                                selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
-                                selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
-                                selected_class.as_ref().map(|c| c.speed).unwrap_or(100.0)
-                            ) {
-                                Ok(client) => {
-                                    network_manager.client = Some(client);
-                                    is_host = false;
-                                    println!("✅ Connected to relay server!");
-                                    println!("✅ Joined lobby: {}", lobby_id);
-                                    current_screen = GameScreen::Lobby;
-                                }
-                                Err(e) => {
-                                    eprintln!("❌ Failed to connect to relay: {}", e);
-                                    // On peut quand même aller au lobby en mode "offline"
-                                    current_screen = GameScreen::Lobby;
-                                    lobby_entry_time = get_time();
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    // Bouton CREATE SERVER
-                    if create_server_button.is_clicked(mouse_pos) {
-                        current_screen = GameScreen::CreateServer;
-                        server_name_input.clear();
-                        server_password_input.clear();
-                        is_private_server = false;
-                        max_players = 4;
-                    }
-
-                    // Bouton REFRESH
-                    if refresh_button.is_clicked(mouse_pos) {
-                        sessions = backend::refresh_sessions();
-                    }
-                }
-
-                let is_hovered = refresh_button.is_clicked(mouse_pos);
-                refresh_button.draw(is_hovered);
-
-                // Dessiner le bouton CREATE SERVER
-
-                let is_hovered = create_server_button.is_clicked(mouse_pos);
-                create_server_button.draw(is_hovered);
-
-                if is_key_pressed(KeyCode::Escape) {
-                    current_screen = GameScreen::PlayMenu;
-                }
-            }
-
-            GameScreen::CreateServer => {
-                draw_create_server(
-                    &server_name_input,
-                    is_private_server,
-                    &server_password_input,
-                    max_players,
-                    server_name_active,
-                    server_password_active,
-                    mouse_pos,
+            GameScreen::SessionList | GameScreen::CreateServer | GameScreen::Lobby => {
+                let action = lobby_system.update(
+                    &mut current_screen,
+                    &renderer,
+                    &player_profile,
+                    &mut network_manager,
+                    &mut selected_class,
+                    &vext_token,
+                    &all_classes,
+                    &mut other_players,
+                    &mut _game_state,
+                    &mut _enemies,
+                    &mut _enemy,
+                    &mut turn_system,
+                    &mut current_turn_id,
+                    &mut combat_logs,
+                    &mut last_network_log,
+                    &mut _lobby_host_id,
+                    &mut enemy_hp,
+                    &mut is_host,
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT
                 );
 
-                if is_mouse_button_pressed(MouseButton::Left) {
-                    // Input server name
-                    let name_rect = Rect::new(100.0, 160.0, 600.0, 50.0);
-                    server_name_active = name_rect.contains(mouse_pos);
+                match action {
+                    LobbyAction::SwitchScreen(s) => current_screen = s,
+                    LobbyAction::StartGame => {
+                        current_screen = GameScreen::InGame;
+                        is_solo_mode = false;
 
-                    // Checkbox private
-                    let checkbox_rect = Rect::new(300.0, 210.0, 30.0, 30.0);
-                    if checkbox_rect.contains(mouse_pos) {
-                        is_private_server = !is_private_server;
-                        if !is_private_server {
-                            server_password_input.clear();
+                        // Init visual player entity with Sorted Position
+                        let mut all_ids = vec![player_profile.vext_username.clone()];
+                        for id in other_players.keys() {
+                            all_ids.push(id.clone());
                         }
-                    }
+                        all_ids.sort();
 
-                    // Input password
-                    if is_private_server {
-                        let password_rect = Rect::new(100.0, 300.0, 600.0, 50.0);
-                        server_password_active = password_rect.contains(mouse_pos);
-                    } else {
-                        server_password_active = false;
-                    }
-
-                    // Bouton CREATE
-                    if confirm_create_button.is_clicked(mouse_pos) && !server_name_input.is_empty() {
-                        // Announce to Backend (METADATA)
-                        network_api::announce_server(
-                            &server_name_input, 
-                            &player_profile.vext_username,
-                            max_players,
-                            is_private_server,
-                            if is_private_server && !server_password_input.is_empty() { Some(server_password_input.clone()) } else { None }
-                        );
-
-                        // Connect to Relay (WS)
-                        let lobby_id = server_name_input.clone();
-                        let ws_url = network_api::get_ws_url();
-                        
-                        match GameClient::connect(
-                            &ws_url,
-                            &vext_token,
-                            lobby_id.clone(),
-                            selected_class.as_ref().map(|c| c.name.clone()).unwrap_or_else(|| "warrior".to_string()).to_lowercase(),
-                            true, // is_host = true
-                            player_profile.vext_username.clone(),
-                            player_profile.vext_username.clone(), // UserID
-                            selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
-                            selected_class.as_ref().map(|c| c.hp).unwrap_or(100.0),
-                            selected_class.as_ref().map(|c| c.speed).unwrap_or(100.0)
-                        ) {
-                            Ok(client) => {
-                                network_manager.client = Some(client);
-                                is_host = true;
-                                println!("✅ Server created and connected to relay: {}", lobby_id);
+                        let get_pos = |rank: usize| -> Vec2 {
+                            match rank {
+                                0 => vec2(250.0, 450.0), // Front Center
+                                1 => vec2(150.0, 350.0), // Top Flank
+                                2 => vec2(150.0, 550.0), // Bottom Flank
+                                3 => vec2(50.0, 450.0),  // Rear Guard
+                                _ => vec2(100.0 + (rank as f32 * 10.0), 450.0),
                             }
-                            Err(e) => {
-                                eprintln!("❌ Failed to connect relay: {}", e);
-                            }
-                        }
+                        };
 
-                        // Créer le serveur localement pour la liste
-                        let new_session = GameSession::new(
-                            &server_name_input,
-                            &player_profile.vext_username,
-                            max_players,
-                            is_private_server,
-                            if is_private_server && !server_password_input.is_empty() {
-                                Some(server_password_input.clone())
+                        for (rank, id) in all_ids.iter().enumerate() {
+                            let pos = get_pos(rank);
+                            if *id == player_profile.vext_username {
+                                if let Some(cls) = selected_class.as_ref() {
+                                    let mut new_player = StickFigure::new(pos, "You".to_string());
+                                    new_player.max_health = cls.hp;
+                                    new_player.health = new_player.max_health;
+                                    new_player.color = cls.color();
+                                    _player = Some(new_player);
+                                }
                             } else {
-                                None
-                            },
-                        );
-                        
-                        let y_pos = 140.0 + sessions.len() as f32 * 70.0;
-                        sessions.push(SessionButton::new(
-                            new_session,
-                            20.0,
-                            y_pos,
-                            SCREEN_WIDTH - 360.0,
-                            60.0,
-                        ));
-
-                        selected_session = Some(sessions.len() - 1);
-                        current_screen = GameScreen::Lobby;
-                        lobby_entry_time = get_time();
+                                if let Some(p) = other_players.get_mut(id) {
+                                    p.position = (pos.x, pos.y);
+                                }
+                            }
+                        }
                     }
-                }
-
-                // Input clavier
-                if server_name_active {
-                    handle_text_input(&mut server_name_input, 30);
-                } else if server_password_active {
-                    handle_text_input(&mut server_password_input, 20);
-                }
-
-                // Dessiner bouton CREATE
-                let is_hovered = confirm_create_button.is_clicked(mouse_pos);
-                confirm_create_button.draw(is_hovered);
-
-                if is_key_pressed(KeyCode::Escape) {
-                    current_screen = GameScreen::SessionList;
+                    _ => {}
                 }
             }
-
-
-            GameScreen::Lobby => {
-                clear_background(Color::from_rgba(30, 30, 50, 255));
-                
-                let session_name = if let Some(idx) = selected_session {
-                    &sessions[idx].session.name
-                } else {
-                    "Lobby"
-                };
-
-                draw_text(&format!("LOBBY: {}", session_name), 50.0, 50.0, 40.0, WHITE);
-
-                // ===== RELAY MULTIPLAYER: Poll for updates =====
-                if let Some(client) = &network_manager.client {
-                    if let Some(next) = network_handler::NetworkHandler::handle_events(
-                        client, &player_profile, &all_classes, &mut other_players, &mut _game_state,
-                        &mut _enemies, &mut _enemy, &mut turn_system, &mut current_turn_id,
-                        &mut combat_logs, &mut last_network_log, &mut _lobby_host_id, &mut selected_class,
-                        SCREEN_WIDTH, SCREEN_HEIGHT, &mut enemy_hp
-                    ) {
-                        if next == "InGame" {
-                            current_screen = GameScreen::InGame;
-                            is_solo_mode = false;
-
-                            // Init visual player entity with Sorted Position
-                            // Init visual player entity with Sorted Position
-                            let mut all_ids = vec![player_profile.vext_username.clone()];
-                            for id in other_players.keys() {
-                                all_ids.push(id.clone());
-                            }
-                            all_ids.sort();
-
-                            let get_pos = |rank: usize| -> Vec2 {
-                                match rank {
-                                    0 => vec2(250.0, 450.0), // Front Center
-                                    1 => vec2(150.0, 350.0), // Top Flank
-                                    2 => vec2(150.0, 550.0), // Bottom Flank
-                                    3 => vec2(50.0, 450.0),  // Rear Guard
-                                    _ => vec2(100.0 + (rank as f32 * 10.0), 450.0),
-                                }
-                            };
-
-                            for (rank, id) in all_ids.iter().enumerate() {
-                                let pos = get_pos(rank);
-                                if *id == player_profile.vext_username {
-                                    if let Some(cls) = selected_class.as_ref() {
-                                        let mut new_player = StickFigure::new(pos, "You".to_string());
-                                        new_player.max_health = cls.hp;
-                                        new_player.health = new_player.max_health;
-                                        new_player.color = cls.color();
-                                        _player = Some(new_player);
-                                    }
-                                } else {
-                                    if let Some(p) = other_players.get_mut(id) {
-                                        p.position = (pos.x, pos.y);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if !other_players.is_empty() {
-                    renderer.draw_lobby(session_name, 1 + other_players.len(), &player_profile, &other_players);
-                } else {
-                     renderer.draw_lobby(session_name, 1, &player_profile, &other_players);
-                }
 
  
-                 // --- CLASS SELECTION UI (Grid restricted for space or scrollable) ---
-                 draw_text("CHOOSE CLASS:", 500.0, 100.0, 30.0, WHITE);
                  
-                 for (idx, cls) in all_classes.iter().enumerate() {
-                     let btn_x = 500.0 + (idx / 10) as f32 * 170.0; // Two columns if many classes
-                     let btn_y = 140.0 + (idx % 10) as f32 * 45.0;
-                     let btn_w = 160.0;
-                     let btn_h = 40.0;
-                     
-                     let is_selected = selected_class.as_ref().map(|c| &c.name == &cls.name).unwrap_or(false);
-                     let color = if is_selected { cls.color() } else { DARKGRAY };
-                     
-                     let is_hovered = mouse_pos.x >= btn_x && mouse_pos.x <= btn_x + btn_w && mouse_pos.y >= btn_y && mouse_pos.y <= btn_y + btn_h;
-                     
-                     if is_hovered {
-                         draw_rectangle(btn_x - 2.0, btn_y - 2.0, btn_w + 4.0, btn_h + 4.0, WHITE);
-                     }
-                     draw_rectangle(btn_x, btn_y, btn_w, btn_h, color);
-                     draw_text(&cls.name, btn_x + 10.0, btn_y + 28.0, 18.0, WHITE);
-                     
-                     if is_mouse_button_pressed(MouseButton::Left) && is_hovered {
-                         selected_class = Some(cls.clone());
-                         // Send update to server
-                         if let Some(client) = &network_manager.client {
-                             println!("📤 Sending class change: {}", cls.name.to_lowercase());
-                             client.send_class_change(cls.name.to_lowercase());
-                         }
-                     }
-                 }
+                // (Class Loop Moved)
 
-                // Start Button (Host Only)
-                // Debug log occasionally
-                if get_time() % 5.0 < 0.02 {
-                    println!("Debug Host Check: lobby_host_id='{}', username='{}', is_host={}", 
-                        _lobby_host_id, player_profile.vext_username, is_host);
-                }
-
-                if _lobby_host_id == player_profile.vext_username || is_host {
-                    
-                    // Draw the button!
-                    let is_hovered = start_btn.is_clicked(mouse_pos);
-                    start_btn.draw(is_hovered);
-
-                    // Check if START is clicked (with cooldown)
-                    if is_hovered && is_mouse_button_pressed(MouseButton::Left) && get_time() - lobby_entry_time > 1.0 {
-                        println!("Host starting game...");
-                        if let Some(client) = &network_manager.client {
-                            // Generate Wave 1 Enemies
-                            let mut init_enemies = Vec::new();
-                            let temp_wm = waves::WaveManager::new(); // Just to get Wave 1 data
-                                if let Some(wave) = temp_wm.waves.get(0) { // Wave 1
-                                    println!("Host: Found Wave 1 with {} enemies", wave.enemies.len());
-                                    for (stats, kind, _pos) in &wave.enemies {
-                                         let e = Enemy::new(*_pos, kind.clone(), stats.clone());
-                                     // ADD TO LOCAL BACKUP
-                                     _enemies.push(e.clone());
-                                     
-                                     init_enemies.push(network_client::EnemyData {
-                                         id: e.id,
-                                         name: e.name,
-                                         hp: e.health,
-                                         max_hp: e.max_health,
-                                         speed: e.speed,
-                                         position: (e.position.x, e.position.y),
-                                     });
-                                }
-                            } else {
-                                println!("Host: ERROR - Wave 1 not found!");
-                            }
-                            
-                            println!("Host: Sending start_game with {} enemies", init_enemies.len());
-                            client.start_game(init_enemies);
-                        }
-                    }
-                } else {
-                    draw_text("WAITING FOR HOST TO START...", SCREEN_WIDTH - 450.0, SCREEN_HEIGHT - 100.0, 24.0, LIGHTGRAY);
-                }
-                
-                // ... debug log ...
-
-                // Debug Network Log
-                draw_text(&format!("Last Event: {}", last_network_log), 50.0, SCREEN_HEIGHT - 30.0, 20.0, YELLOW);
-
-                if is_key_pressed(KeyCode::Escape) {
-                    current_screen = GameScreen::SessionList;
-                    // Disconnect relay
-                    if let Some(client) = &network_manager.client {
-                        client.disconnect();
-                    }
-                    network_manager.client = None;
-                    other_players.clear();
-                    last_network_log = "Disconnected".to_string();
-                }
-            }
+                // (Start Logic Moved)
 
             GameScreen::InGame => {
                 // DBG 
@@ -911,14 +621,14 @@ async fn main() {
                      // === MULTIPLAYER HOST AI ===
                      // Logic moved to src/modules/host_ai.rs
                      host_ai.update(
-                         &current_turn_id,
+                         &mut current_turn_id,
                          &player_profile,
                          if let Some(gs) = &_game_state { gs } else { return }, // Safe unwrap via return or check
                          &network_manager,
                          &_enemies,
                          &_enemy,
                          &other_players,
-                         &turn_system,
+                         &mut turn_system,
                          is_solo_mode,
                          &_lobby_host_id
                      );
@@ -926,6 +636,11 @@ async fn main() {
                      // === MULTIPLAYER HOST WAVE MANAGEMENT ===
                      if !is_solo_mode && _lobby_host_id == player_profile.vext_username {
                           // Update Wave Manager state (Host Only)
+                          // DEBUG: Verify queue
+                          if turn_system.turn_queue.is_empty() {
+                              println!("WARNING: Host Wave Update - Turn Queue Empty!");
+                          }
+
                           let old_wave_index = wave_manager.current_wave_index;
                           wave_manager.update(get_frame_time(), _enemies.len(), _enemy.is_some());
                           
@@ -1079,35 +794,7 @@ async fn main() {
             }
         }
 
-        // Dialogue de mot de passe par-dessus tout
-        if show_password_dialog {
-            draw_password_dialog(&join_password_input, join_password_active);
-
-            if join_password_active {
-                handle_text_input(&mut join_password_input, 20);
-            }
-
-            if is_key_pressed(KeyCode::Enter) {
-                // Vérifier le mot de passe
-                if let Some(session_idx) = selected_session {
-                    if let Some(ref password) = sessions[session_idx].session.password {
-                        if join_password_input == *password {
-                            println!("Password correct! Joining session: {}", sessions[session_idx].session.name);
-                            show_password_dialog = false;
-                            current_screen = GameScreen::Lobby;
-                        } else {
-                            println!("Wrong password!");
-                            join_password_input.clear();
-                        }
-                    }
-                }
-            }
-
-            if is_key_pressed(KeyCode::Escape) {
-                show_password_dialog = false;
-                join_password_input.clear();
-            }
-        }
+        // Password logic removed (legacy)
 
         next_frame().await;
     }
