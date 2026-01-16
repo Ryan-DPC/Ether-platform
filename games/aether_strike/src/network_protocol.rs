@@ -7,7 +7,7 @@ pub enum ClientMessage {
     CreateGame { game_id: String, user_id: String, username: String, player_class: String, hp: f32, max_hp: f32 },
     JoinGame { game_id: String, user_id: String, username: String, player_class: String, hp: f32, max_hp: f32 },
     ChangeClass { class: String },
-    StartGame(Vec<EnemyData>),
+    StartGame { enemies: Vec<EnemyData> },
     UseAttack { target_id: Option<String>, attack_name: String, damage: f32, mana_cost: u32, is_area: bool },
     AdminAttack { target_id: String, attack_name: String, damage: f32, actor_id: String },
     EndTurn { next_turn_id: String },

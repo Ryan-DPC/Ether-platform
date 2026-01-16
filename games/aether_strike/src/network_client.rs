@@ -113,7 +113,7 @@ impl GameClient {
 
     pub fn start_game(&self, enemies: Vec<EnemyData>) {
         println!("WS-CLIENT: Sending StartGame message...");
-        let _ = self.tx_to_ws.send(ClientMessage::StartGame(enemies));
+        let _ = self.tx_to_ws.send(ClientMessage::StartGame { enemies });
     }
 
     pub fn start_next_wave(&self, enemies: Vec<EnemyData>, gold: u32, exp: u32) {
