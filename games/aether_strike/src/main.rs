@@ -357,6 +357,10 @@ async fn main() {
                 );
 
                 match action {
+                    LobbyAction::SwitchScreen(s) => {
+                        println!("DEBUG: Switching screen to {:?}", s);
+                        current_screen = s;
+                    },
                     LobbyAction::StartGame => {
                         current_screen = GameScreen::InGame;
                         is_solo_mode = false;
