@@ -258,6 +258,60 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                             }
                                         }
                                     }
+                                    ClientMessage::ChangeClass { class } => {
+                                        let room_tx = {
+                                            let mut rooms = state.rooms.write().unwrap();
+                                            if let Some(room) = rooms.get_mut(&current_room_id) {
+                                                // Update player class in room state
+                                                if let Some(player) = room.players.get_mut(&user_id) {
+                                                    player.class = class.clone();
+                                                    tracing::info!("Player {} changed class to {}", user_id, class);
+                                                }
+                                                
+                                                let broadcast = ServerMessage::PlayerUpdated {
+                                                    player_id: user_id.clone(),
+                                                    class: class.clone()
+                                                };
+                                                if let Ok(data) = rmp_serde::to_vec(&broadcast) {
+                                                    Some((room.tx.clone(), data))
+                                                } else { None }
+                                            } else { None }
+                                        };
+                                        
+                                        if let Some((tx, msg)) = room_tx {
+                                            let _ = tx.send(msg);
+                                        }
+                                    }
+                                    ClientMessage::AdminAttack { actor_id, attack_name, target_id, damage } => {
+                                        // Host sends enemy attack - broadcast to all players
+                                        let room_tx = {
+                                            let rooms = state.rooms.read().unwrap();
+                                            if let Some(room) = rooms.get(&current_room_id) {
+                                                // Only allow host to send AdminAttack
+                                                if room.host_id == user_id {
+                                                    let broadcast = ServerMessage::CombatAction {
+                                                        actor_id,
+                                                        target_id: Some(target_id),
+                                                        action_name: attack_name,
+                                                        damage,
+                                                        mana_cost: 0,
+                                                        is_area: false,
+                                                        target_new_hp: None // Client calculates locally
+                                                    };
+                                                    if let Ok(data) = rmp_serde::to_vec(&broadcast) {
+                                                        Some((room.tx.clone(), data))
+                                                    } else { None }
+                                                } else {
+                                                    tracing::warn!("Non-host {} tried to send AdminAttack", user_id);
+                                                    None
+                                                }
+                                            } else { None }
+                                        };
+                                        
+                                        if let Some((tx, msg)) = room_tx {
+                                            let _ = tx.send(msg);
+                                        }
+                                    }
                                     // Handle other cases or ignore
                                     _ => {
                                         tracing::debug!("Unhandled ClientMessage: {:?}", client_msg);
