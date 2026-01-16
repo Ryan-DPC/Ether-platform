@@ -221,6 +221,9 @@ impl NetworkHandler {
                 _ => {}
             }
         }
+        if next_screen.is_some() {
+             println!("DEBUG: NetworkHandler returning screen switch to {:?}", next_screen);
+        }
         next_screen
     }
 }

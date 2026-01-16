@@ -112,6 +112,7 @@ impl GameClient {
     }
 
     pub fn start_game(&self, enemies: Vec<EnemyData>) {
+        println!("WS-CLIENT: Sending StartGame message...");
         let _ = self.tx_to_ws.send(ClientMessage::StartGame { enemies });
     }
 
@@ -222,7 +223,10 @@ fn ws_thread_loop(
                                             },
                                             ServerMessage::PlayerLeft { player_id } => Some(GameEvent::PlayerLeft { player_id }),
                                             ServerMessage::PlayerUpdated { player_id, class } => Some(GameEvent::PlayerUpdated { player_id, class }),
-                                            ServerMessage::GameStarted { enemies } => Some(GameEvent::GameStarted { enemies }),
+                                            ServerMessage::GameStarted { enemies } => {
+                                                println!("WS-THREAD: Received GameStarted with {} enemies", enemies.len());
+                                                Some(GameEvent::GameStarted { enemies })
+                                            },
                                             ServerMessage::CombatAction { actor_id, target_id, action_name, damage, mana_cost, is_area, target_new_hp } => {
                                                 Some(GameEvent::CombatAction { actor_id, target_id, action_name, damage, mana_cost, is_area, target_new_hp })
                                             },
