@@ -42,7 +42,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       const defaultAvatars = ['avatar_blue.svg', 'avatar_green.svg', 'avatar_red.svg'];
       const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
       // Hardcoding backend URL for now or use env
-      const backendUrl = process.env.BACKEND_URL;
+      const backendUrl = process.env.BACKEND_URL || 'https://vext-backend-yj77.onrender.com';
       const profile_pic = `${backendUrl}/public/avatars/${randomAvatar}`;
 
       const hashedPassword = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 });

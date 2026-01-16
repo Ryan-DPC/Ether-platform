@@ -864,6 +864,10 @@ async fn main() {
                                             is_area = skill.skill_type.to_lowercase().contains("aoe");
                                         }
                                         client.use_attack(name, Some(target_id), damage, mana, is_area); 
+                                        
+                                        // Auto-End Turn after attack in Multiplayer
+                                        let next = turn_system.peek_next_id();
+                                        client.end_turn(next);
                                     }
                                     HUDAction::Flee => { client.flee(); }
                                     HUDAction::EndTurn => { 
