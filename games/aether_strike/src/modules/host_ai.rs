@@ -52,6 +52,15 @@ impl HostAI {
         }
 
         if let Some(client) = &network_manager.client {
+            // DEBUG: Print available enemy IDs
+            if !enemies.is_empty() {
+                println!("HostAI: Looking for turn_id='{}' in {} enemies: {:?}", 
+                    current_turn_id, 
+                    enemies.len(),
+                    enemies.iter().map(|e| e.id.clone()).collect::<Vec<_>>()
+                );
+            }
+            
             // Check Minion
             if let Some(minion) = enemies.iter().find(|e| &e.id == current_turn_id) {
                 if !self.acted {
